@@ -1,0 +1,99 @@
+name: E2E-Tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    name: Playwright (${{ matrix.project }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        project: [public, authenticated]
+    env:
+      E2E_BASE_URL: http://localhost:8080
+      VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+      VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+      VITE_SUPABASE_PROJECT_ID: ${{ secrets.VITE_SUPABASE_PROJECT_ID }}
+      SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+      SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+      SUPABASE_PROJECT_ID: ${{ secrets.VITE_SUPABASE_PROJECT_ID }}
+      LOVABLE_API_KEY: ${{ secrets.LOVABLE_API_KEY }}
+      E2E_EMAIL: ${{ secrets.E2E_EMAIL }}
+      E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Bun-Cache konfigurieren
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.bun/install/cache
+            node_modules
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lockb', 'bun.lock', 'package.json') }}
+          restore-keys: |
+            bun-${{ runner.os }}-
+
+      - name: Abhängigkeiten installieren
+        run: bun install --frozen-lockfile
+
+      # Playwright-Version ermitteln (vor dem Cache-Schritt, da der Key davon
+      # abhängt) — Chromium ist mehrere hundert MB groß und ändert sich nur,
+      # wenn sich die Playwright-Version ändert.
+      - name: Playwright-Version ermitteln
+        id: pw-version
+        run: echo "version=$(bunx playwright --version | cut -d' ' -f2)" >> "$GITHUB_OUTPUT"
+
+      - name: Playwright-Browser-Cache konfigurieren
+        id: pw-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/ms-playwright
+            ~/.cache/ms-playwright-go
+          key: pw-${{ runner.os }}-${{ steps.pw-version.outputs.version }}
+
+      - name: Browser installieren
+        if: steps.pw-cache.outputs.cache-hit != 'true'
+        run: bunx playwright install --with-deps chromium
+
+      - name: E2E-Tests ausführen
+        run: bunx playwright test --project=${{ matrix.project }}
+
+      - name: Report hochladen
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-${{ matrix.project }}
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+          if-no-files-found: ignore
+
+      # Bei Fehlschlag zusätzlich Traces/Videos/Screenshots separat hochladen,
+      # damit sie ohne den kompletten HTML-Report abrufbar sind.
+      - name: Traces hochladen (nur bei Fehlern)
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces-${{ matrix.project }}
+          path: |
+            test-results/**/trace.zip
+            test-results/**/*.webm
+            test-results/**/*.png
+          retention-days: 14
+          if-no-files-found: ignore

@@ -1,0 +1,117 @@
+{
+  "version": 1,
+  "sdk_version": "0.20.0",
+  "path": "/mcp",
+  "auth": {
+    "type": "oauth",
+    "issuer": "https://wklxutrhqndukunqjqvj.supabase.co/auth/v1",
+    "accepted_audiences": [
+      "authenticated"
+    ]
+  },
+  "mcp": {
+    "server": {
+      "name": "oneclick-mcp",
+      "version": "0.1.0",
+      "title": "OneClick Dokumenten-Assistent"
+    },
+    "tools": [
+      {
+        "name": "list_documents",
+        "title": "Dokumente auflisten",
+        "description": "Listet die hochgeladenen Behördendokumente des angemeldeten Nutzers mit Titel, Kategorie, Status und Datum auf. Optional nach Kategorie filterbar.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "category": {
+              "description": "Optionaler Kategoriefilter.",
+              "type": "string",
+              "enum": [
+                "wohngeld",
+                "buergergeld",
+                "kindergeld",
+                "pflege",
+                "krankenkasse",
+                "finanzen",
+                "arbeit",
+                "versicherungen",
+                "sonstiges"
+              ]
+            },
+            "limit": {
+              "description": "Maximale Anzahl der Ergebnisse (Standard 50).",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          }
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "get_document",
+        "title": "Dokument mit Analyse abrufen",
+        "description": "Ruft ein einzelnes Dokument des angemeldeten Nutzers samt der neuesten KI-Analyse ab (Zusammenfassung, Fristen, Ansprechpartner, benötigte Felder, fehlende Angaben).",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "document_id": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "description": "Die ID des Dokuments (aus list_documents)."
+            }
+          },
+          "required": [
+            "document_id"
+          ]
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_deadlines",
+        "title": "Fristen auflisten",
+        "description": "Sammelt alle in den analysierten Dokumenten des angemeldeten Nutzers erkannten Fristen und Termine, sortiert nach Datum.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {}
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "get_master_data",
+        "title": "Stammdaten abrufen",
+        "description": "Ruft die gespeicherten Stammdaten des angemeldeten Nutzers ab (Name, Adresse, Kontaktdaten). Sensible Finanz- und Ausweisdaten (IBAN, BIC, Steuer-ID, Ausweisnummer) werden aus Datenschutzgründen nicht ausgegeben.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {}
+        },
+        "outputSchema": null
+      }
+    ]
+  }
+}
