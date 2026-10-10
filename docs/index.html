@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#6200ee">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
+<title>📅 Familien-Tagesplaner</title>
+<style>
+:root{--p:#6200ee;--pc:#e8ddff;--s:#03dac6;--sf:#f5f5f5;--e:#b00020;--sc:#4caf50;--os:#1c1b1f;--osv:#49454f}
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif}
+body{background:var(--sf);color:var(--os);min-height:100vh}
+.h{background:linear-gradient(135deg,var(--p),var(--s));color:#fff;padding:16px 20px;position:sticky;top:0;z-index:100;box-shadow:0 2px 10px rgba(0,0,0,.1)}
+.hc{max-width:1200px;margin:0 auto;display:flex;justify-content:space-between;align-items:center}
+.h h1{font-size:1.5rem;font-weight:600}
+.ha{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.finfo{display:flex;gap:12px;align-items:center}
+.fm{display:flex;align-items:center;gap:6px;padding:6px 12px;background:rgba(255,255,255,.2);border-radius:20px;font-size:.85rem}
+.nt{display:flex;background:var(--sf);border-bottom:1px solid #e0e0e0;overflow-x:auto}
+.ntb{padding:12px 20px;cursor:pointer;border:none;background:none;font-size:.95rem;font-weight:500;color:var(--osv);white-space:nowrap;border-bottom:3px solid transparent;transition:all .2s}
+.ntb:hover{color:var(--p)}
+.ntb.active{color:var(--p);border-bottom-color:var(--p)}
+.mc{max-width:1200px;margin:0 auto;padding:20px}
+.wv{display:none}
+.wv.active{display:block}
+.wh{margin-bottom:20px}
+.wt{font-size:1.5rem;font-weight:600;margin-bottom:8px}
+.ws{color:var(--osv);margin-bottom:20px}
+.ds{display:flex;gap:8px;overflow-x:auto;padding-bottom:12px;margin-bottom:20px}
+.dc{min-width:60px;padding:10px 12px;border-radius:12px;border:2px solid #e0e0e0;background:#fff;cursor:pointer;text-align:center;transition:all .2s}
+.dc:hover{border-color:var(--p)}
+.dc.selected{background:var(--p);color:#fff;border-color:var(--p)}
+.dc.today{border-color:var(--p);background:var(--pc)}
+.dn{font-size:.7rem;font-weight:600;text-transform:uppercase;margin-bottom:4px}
+.dnb{font-size:1.2rem;font-weight:700}
+.ed{display:flex;justify-content:center;gap:3px;margin-top:6px}
+.edot{width:6px;height:6px;border-radius:50%}
+.es{margin-top:20px}
+.sh{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.st{font-size:1.1rem;font-weight:600}
+.el{display:flex;flex-direction:column;gap:12px}
+.ec{background:#fff;border-radius:12px;padding:16px;box-shadow:0 1px 3px rgba(0,0,0,.1);border-left:4px solid var(--p);transition:transform .2s}
+.ec:hover{transform:translateY(-2px);box-shadow:0 4px 8px rgba(0,0,0,.15)}
+.ec.completed{opacity:.7;border-left-color:var(--sc)}
+.ec.task{border-left-color:var(--s)}
+.eh{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px}
+.et{font-weight:600;color:var(--p);font-size:.9rem}
+.eb{display:flex;gap:6px}
+.b{padding:3px 8px;border-radius:6px;font-size:.7rem;font-weight:600;text-transform:uppercase}
+.b.task{background:#e8f5e9;color:#2e7d32}
+.b.recurring{background:#fff3e0;color:#e65100}
+.etl{font-size:1.1rem;font-weight:600;margin-bottom:6px}
+.ec.completed .etl{text-decoration:line-through;color:#666}
+.ep{display:inline-flex;align-items:center;gap:6px;background:#f0f0f0;padding:4px 10px;border-radius:6px;font-size:.85rem;margin-right:8px}
+.ea{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.bi{padding:6px 12px;border:1px solid #e0e0e0;background:#fff;border-radius:6px;cursor:pointer;font-size:.85rem;transition:all .2s}
+.bi:hover{background:#f0f0f0}
+.bi.complete{color:var(--sc);border-color:var(--sc)}
+.bi.delete{color:var(--e);border-color:var(--e)}
+.do{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center}
+.do.active{display:flex}
+.d{background:#fff;border-radius:16px;padding:24px;width:90%;max-width:500px;max-height:90vh;overflow-y:auto;box-shadow:0 10px 30px rgba(0,0,0,.3)}
+.dh{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+.dt{font-size:1.3rem;font-weight:600}
+.dcb{background:none;border:none;font-size:1.5rem;cursor:pointer;color:#666}
+.fg{margin-bottom:16px}
+.fl{display:block;font-weight:500;margin-bottom:6px;font-size:.9rem}
+.finput{width:100%;padding:10px 12px;border:1px solid #e0e0e0;border-radius:8px;font-size:.95rem}
+.finput:focus{outline:none;border-color:var(--p)}
+.fr{display:flex;gap:12px}
+.fr .finput{flex:1}
+.btn{padding:12px 24px;border:none;border-radius:8px;font-size:.95rem;font-weight:600;cursor:pointer;transition:all .2s}
+.bp{background:var(--p);color:#fff}
+.bp:hover{background:#5500dd}
+.bs{background:var(--sf);color:var(--os)}
+.bs:hover{background:#e0e0e0}
+.da{display:flex;gap:12px;justify-content:flex-end;margin-top:20px}
+.fs{text-align:center;padding:40px 20px}
+.flogo{font-size:4rem;margin-bottom:20px}
+.fs h2{font-size:1.5rem;margin-bottom:12px}
+.fs p{color:var(--osv);margin-bottom:24px}
+.sa{display:flex;flex-direction:column;gap:12px;max-width:400px;margin:0 auto}
+.sa .btn{padding:16px 24px;font-size:1rem}
+.ss{display:flex;align-items:center;gap:8px;padding:8px 12px;background:rgba(255,255,255,.2);border-radius:8px;font-size:.85rem;color:#fff;font-weight:500}
+.si{width:8px;height:8px;border-radius:50%;background:#fff;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+.esi{font-size:4rem;margin-bottom:16px}
+.es h3{font-size:1.2rem;margin-bottom:8px}
+.es p{color:var(--osv)}
+.sr{display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap}
+.sc{flex:1;min-width:120px;padding:12px 16px;background:#fff;border-radius:10px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.1)}
+.sv{font-size:1.5rem;font-weight:700;color:var(--p)}
+.sl{font-size:.8rem;color:var(--osv);margin-top:4px}
+.ib{background:#fff;border-radius:12px;padding:16px 20px;margin-bottom:20px;box-shadow:0 1px 3px rgba(0,0,0,.1);display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.ibl{font-size:.85rem;color:var(--osv)}
+.icode{font-size:1.4rem;font-weight:700;color:var(--p);letter-spacing:2px}
+.ihint{font-size:.8rem;color:var(--osv);margin-top:8px}
+@media(max-width:768px){.hc{flex-direction:column;gap:12px}.finfo{flex-wrap:wrap;justify-content:center}.nt{justify-content:flex-start}.fr{flex-direction:column}}
+</style>
+</head>
+<body>
+<div class="h">
+<div class="hc">
+<div><h1>📅 Familien-Tagesplaner</h1></div>
+<div class="ha">
+<div class="ss" id="syncStatus"><span class="si"></span><span id="syncText">Lokal (Offline)</span></div>
+<div class="finfo" id="familyInfo"></div>
+<button class="btn bp" onclick="openAddDialog()">+ Neu</button>
+</div>
+</div>
+</div>
+
+<div class="nt">
+<button class="ntb active" onclick="switchTab('today')">Heute</button>
+<button class="ntb" onclick="switchTab('week')">Woche</button>
+<button class="ntb" onclick="switchTab('schedule')">Übersicht</button>
+<button class="ntb" onclick="switchTab('family')">Familie</button>
+</div>
+
+<div class="mc">
+<div id="today" class="wv active">
+<div class="wh"><h2 class="wt" id="todayTitle">Heute</h2><p class="ws" id="todaySubtitle"></p></div>
+<div class="ds" id="daySelector"></div>
+<div class="es"><div class="sh"><span class="st" id="todayEventsCount">0 Termine</span></div><div class="el" id="todayEvents"></div></div>
+</div>
+
+<div id="week" class="wv">
+<div class="wh"><h2 class="wt">Wochenübersicht</h2><p class="ws">Termine der kommenden 7 Tage</p></div>
+<div class="ds" id="weekDaySelector"></div>
+<div class="es"><div class="el" id="weekEvents"></div></div>
+</div>
+
+<div id="schedule" class="wv">
+<div class="wh"><h2 class="wt">Alle Termine & Aufgaben</h2><p class="ws">Gesamte Planung im Überblick</p></div>
+<div class="sr" id="statsRow">
+<div class="sc"><div class="sv" id="totalEvents">0</div><div class="sl">Termine</div></div>
+<div class="sc"><div class="sv" id="totalTasks">0</div><div class="sl">Aufgaben</div></div>
+<div class="sc"><div class="sv" id="completedCount">0</div><div class="sl">Erledigt</div></div>
+<div class="sc"><div class="sv" id="recurringCount">0</div><div class="sl">Wiederkehrend</div></div>
+</div>
+<div class="es"><div class="el" id="allEvents"></div></div>
+</div>
+
+<div id="family" class="wv">
+<div class="fs" id="familySetup">
+<div class="flogo">👨‍👩‍👧‍👦</div>
+<h2>Familie einrichten</h2>
+<p>Richten Sie Ihre Familie ein, um Termine auf mehreren Geräten zu synchronisieren</p>
+<div class="sa">
+<button class="btn bp" onclick="showCreateFamily()">Familie gründen</button>
+<button class="btn bs" onclick="showJoinFamily()">Familie beitreten</button>
+<button class="btn bs" onclick="continueOffline()">Offline weiter</button>
+</div>
+</div>
+<div id="familyMembersSection" style="display:none">
+<div class="ib" id="inviteBox" style="display:none">
+<div><div class="ibl">Einladungscode (zum Teilen mit der Familie)</div><div class="icode" id="inviteCodeText"></div><div class="ihint">Ehepartner/in: Auf dem eigenen Gerät „Familie beitreten" wählen und diesen Code eingeben.</div></div>
+<button class="btn bp" onclick="copyInviteCode()">📋 Kopieren</button>
+</div>
+<h2 style="margin-bottom:12px">Familienmitglieder</h2>
+<div class="el" id="familyMembers"></div>
+</div>
+</div>
+</div>
+
+<div class="do" id="addDialog">
+<div class="d">
+<div class="dh"><span class="dt" id="dialogTitle">Neuer Termin</span><button class="dcb" onclick="closeDialog()">&times;</button></div>
+<div class="fg"><label class="fl">Titel *</label><input type="text" class="finput" id="eventTitle" placeholder="z.B. Kinderarzt, Einkaufen"></div>
+<div class="fg"><label class="fl">Für wen?</label><select class="finput" id="eventPerson"><option value="family">👨‍👩‍👧‍👦 Familie</option></select></div>
+<div class="fg"><label class="fl">Datum</label><input type="date" class="finput" id="eventDate"></div>
+<div class="fr">
+<div class="fg" style="flex:1"><label class="fl">Startzeit</label><input type="time" class="finput" id="eventStartTime"></div>
+<div class="fg" style="flex:1"><label class="fl">Dauer (Min.)</label><input type="number" class="finput" id="eventDuration" value="45" min="15" max="480"></div>
+</div>
+<div class="fg"><label class="fl">Typ</label><select class="finput" id="eventType"><option value="event">📅 Termin</option><option value="task">✅ Aufgabe</option></select></div>
+<div class="fg"><label class="fl">Wiederholung</label><select class="finput" id="eventRecurrence"><option value="none">Einmalig</option><option value="daily">Täglich</option><option value="weekly">Wöchentlich</option><option value="monthly">Monatlich</option><option value="workdays">Mo-Fr</option></select></div>
+<div class="fg"><label class="fl">Notiz (optional)</label><textarea class="finput" id="eventNotes" rows="2" placeholder="Zusätzliche Informationen"></textarea></div>
+<div class="da"><button class="btn bs" onclick="closeDialog()">Abbrechen</button><button class="btn bp" onclick="saveEvent()">Speichern</button></div>
+</div>
+</div>
+
+<div class="do" id="familyDialog">
+<div class="d">
+<div class="dh"><span class="dt" id="familyDialogTitle">Familie gründen</span><button class="dcb" onclick="closeFamilyDialog()">&times;</button></div>
+<div id="createFamilyForm">
+<div class="fg"><label class="fl">Familienname</label><input type="text" class="finput" id="familyName" placeholder="z.B. Familie Müller"></div>
+<div class="fg"><label class="fl">Ihr Name</label><input type="text" class="finput" id="myName" placeholder="Ihr Vorname"></div>
+<div class="fg"><label class="fl">Rolle</label><select class="finput" id="myRole"><option value="Mama">Mama</option><option value="Papa">Papa</option><option value="Kind">Kind</option><option value="Sonstiges">Sonstiges</option></select></div>
+<div class="fg"><label class="fl">Emoji</label><select class="finput" id="myEmoji"><option value="👩">👩</option><option value="👨">👨</option><option value="👧">👧</option><option value="👦">👦</option><option value="😊">😊</option><option value="🌟">🌟</option></select></div>
+<div class="da"><button class="btn bs" onclick="closeFamilyDialog()">Abbrechen</button><button class="btn bp" onclick="createFamily()">Familie gründen</button></div>
+</div>
+<div id="joinFamilyForm" style="display:none">
+<div class="fg"><label class="fl">Einladungscode</label><input type="text" class="finput" id="inviteCode" placeholder="z.B. ABCD-1234"></div>
+<div class="fg"><label class="fl">Ihr Name</label><input type="text" class="finput" id="joinName" placeholder="Ihr Vorname"></div>
+<div class="fg"><label class="fl">Rolle</label><select class="finput" id="joinRole"><option value="Mama">Mama</option><option value="Papa">Papa</option><option value="Kind">Kind</option><option value="Sonstiges">Sonstiges</option></select></div>
+<div class="fg"><label class="fl">Emoji</label><select class="finput" id="joinEmoji"><option value="👩">👩</option><option value="👨">👨</option><option value="👧">👧</option><option value="👦">👦</option><option value="😊">😊</option><option value="🌟">🌟</option></select></div>
+<div class="da"><button class="btn bs" onclick="closeFamilyDialog()">Abbrechen</button><button class="btn bp" onclick="joinFamily()">Familie beitreten</button></div>
+</div>
+</div>
+</div>
+
+<div class="do" id="deleteDialog">
+<div class="d">
+<div class="dh"><span class="dt">Termin löschen</span><button class="dcb" onclick="closeDeleteDialog()">&times;</button></div>
+<p>Möchten Sie diesen Termin wirklich löschen?</p>
+<p id="deleteEventTitle" style="margin-top:12px;font-weight:500"></p>
+<div class="da"><button class="btn bs" onclick="closeDeleteDialog()">Abbrechen</button><button class="btn bp" style="background:var(--e)" onclick="confirmDelete()">Löschen</button></div>
+</div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+// ================= KONFIGURATION =================
+// Hier die Werte aus der Firebase-Konsole eintragen:
+// (Firebase-Konsole → Projekteinstellungen → Allgemein → "Meine Apps" → SDK-Setup und Konfiguration → Config)
+const FIREBASE_CONFIG = {
+  apiKey: "",
+  authDomain: "",
+  projectId: "",
+  storageBucket: "",
+  messagingSenderId: "",
+  appId: ""
+};
+const SYNC_ENABLED = !!(FIREBASE_CONFIG.projectId && FIREBASE_CONFIG.apiKey);
+
+// ================= DATEN & STATUS =================
+let events = [];
+let family = null;
+let members = [];
+let db = null;
+let unsubMembers = null, unsubEvents = null;
+let currentDate = new Date().toISOString().split('T')[0];
+let selectedDate = currentDate;
+let editingEventId = null;
+let deleteEventId = null;
+let myMemberId = localStorage.getItem('fp_myMemberId') || null;
+
+function randId(prefix) { return prefix + '_' + Date.now().toString(36) + Math.random().toString(36).substr(2, 6); }
+function esc(s) { return String(s === undefined || s === null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+function loadLocal() {
+  try { events = JSON.parse(localStorage.getItem('familienplaner_events')) || []; } catch (e) { events = []; }
+  try { family = JSON.parse(localStorage.getItem('familienplaner_family')) || null; } catch (e) { family = null; }
+  try { members = JSON.parse(localStorage.getItem('familienplaner_members')) || []; } catch (e) { members = []; }
+}
+function saveLocalState() {
+  localStorage.setItem('familienplaner_events', JSON.stringify(events));
+  localStorage.setItem('familienplaner_family', JSON.stringify(family));
+  localStorage.setItem('familienplaner_members', JSON.stringify(members));
+}
+function setSync(text) { document.getElementById('syncText').textContent = text; }
+function isSynced() { return !!(SYNC_ENABLED && db && family && family.inviteCode); }
+function famDoc(code) { return db.collection('families').doc(code); }
+function evCol(code) { return famDoc(code).collection('events'); }
+function memCol(code) { return famDoc(code).collection('members'); }
+
+// ================= FIREBASE =================
+async function initSync() {
+  try {
+    if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
+    db = firebase.firestore();
+    try { await firebase.firestore().enablePersistence({ synchronizeTabs: true }); } catch (e) { }
+    await firebase.auth().signInAnonymously();
+    if (family && family.inviteCode) subscribeAll(family.inviteCode);
+    else setSync('Lokal (keine Familie)');
+  } catch (err) {
+    console.warn('Sync nicht verfuegbar:', err);
+    db = null;
+    setSync('Lokal (Offline)');
+  }
+}
+
+function subscribeAll(code) {
+  if (unsubMembers) unsubMembers();
+  if (unsubEvents) unsubEvents();
+  setSync('Verbinde…');
+  unsubMembers = memCol(code).onSnapshot(function (snap) {
+    members = snap.docs.map(function (d) { return d.data(); });
+    saveLocalState();
+    updatePersonSelect(); updateFamilyUI(); renderAllTabs(); updateDaySelector();
+  }, function () { setSync('Offline – zeige lokalen Stand'); });
+  unsubEvents = evCol(code).onSnapshot(function (snap) {
+    events = snap.docs.map(function (d) { return d.data(); });
+    saveLocalState();
+    renderAllTabs(); updateDaySelector();
+    setSync('Synchronisiert 🔗');
+  }, function () { setSync('Offline – zeige lokalen Stand'); });
+}
+
+// ================= FAMILIE =================
+function showCreateFamily() {
+  document.getElementById('familyDialogTitle').textContent = 'Familie gründen';
+  document.getElementById('createFamilyForm').style.display = 'block';
+  document.getElementById('joinFamilyForm').style.display = 'none';
+  document.getElementById('familyDialog').classList.add('active');
+}
+function showJoinFamily() {
+  document.getElementById('familyDialogTitle').textContent = 'Familie beitreten';
+  document.getElementById('createFamilyForm').style.display = 'none';
+  document.getElementById('joinFamilyForm').style.display = 'block';
+  document.getElementById('familyDialog').classList.add('active');
+}
+function closeFamilyDialog() { document.getElementById('familyDialog').classList.remove('active'); }
+
+function createFamily() {
+  const familyName = document.getElementById('familyName').value.trim();
+  const myName = document.getElementById('myName').value.trim();
+  const myRole = document.getElementById('myRole').value;
+  const myEmoji = document.getElementById('myEmoji').value;
+  if (!familyName || !myName) { alert('Bitte geben Sie Familienname und Ihren Namen ein'); return; }
+  const code = generateInviteCode();
+  const member = { id: randId('mem'), name: myName, role: myRole, emoji: myEmoji, color: getColorForRole(myRole), createdAt: new Date().toISOString() };
+  family = { inviteCode: code, name: familyName, createdAt: new Date().toISOString() };
+  members = [member];
+  myMemberId = member.id;
+  localStorage.setItem('fp_myMemberId', myMemberId);
+  saveLocalState();
+  closeFamilyDialog(); updateFamilyUI(); updatePersonSelect();
+  if (SYNC_ENABLED && db) {
+    const batch = db.batch();
+    batch.set(famDoc(code), family);
+    batch.set(memCol(code).doc(member.id), member);
+    batch.commit().then(function () { subscribeAll(code); }).catch(function (err) { alert('Sync-Fehler: ' + err.message); });
+  }
+  alert('Familie "' + familyName + '" erstellt!\n\nEinladungscode: ' + code + '\n\nTeilen Sie ihn mit Ihrer Familie (Tab "Familie" → Code kopieren).');
+}
+
+function joinFamily() {
+  const code = document.getElementById('inviteCode').value.trim().toUpperCase();
+  const myName = document.getElementById('joinName').value.trim();
+  const myRole = document.getElementById('joinRole').value;
+  const myEmoji = document.getElementById('joinEmoji').value;
+  if (!code || !myName) { alert('Bitte geben Sie Einladungscode und Ihren Namen ein'); return; }
+  const member = { id: randId('mem'), name: myName, role: myRole, emoji: myEmoji, color: getColorForRole(myRole), createdAt: new Date().toISOString() };
+  myMemberId = member.id;
+  localStorage.setItem('fp_myMemberId', myMemberId);
+  if (SYNC_ENABLED && db) {
+    setSync('Verbinde…');
+    famDoc(code).get().then(function (snap) {
+      if (!snap.exists) { alert('Einladungscode nicht gefunden. Bitte prüfen Sie die Eingabe.'); return null; }
+      const data = snap.data();
+      family = { inviteCode: code, name: data.name, createdAt: data.createdAt };
+      return memCol(code).doc(member.id).set(member).then(function () { return true; });
+    }).then(function (ok) {
+      if (!ok) return;
+      saveLocalState(); closeFamilyDialog(); updateFamilyUI(); updatePersonSelect(); subscribeAll(code);
+    }).catch(function (err) { alert('Fehler beim Beitreten: ' + err.message); });
+  } else {
+    family = { inviteCode: code, name: 'Familie', createdAt: new Date().toISOString() };
+    members.push(member);
+    saveLocalState(); closeFamilyDialog(); updateFamilyUI(); updatePersonSelect();
+    alert('Hinweis: Synchronisation ist nicht aktiv (Firebase nicht konfiguriert).');
+  }
+}
+
+function continueOffline() {
+  if (members.length === 0) {
+    members.push({ id: 'user1', name: 'Nutzer', role: 'Mitglied', emoji: '👤', color: '#6200ee' });
+    saveLocalState();
+  }
+  document.getElementById('familySetup').style.display = 'none';
+  document.getElementById('familyMembersSection').style.display = 'block';
+  updateFamilyUI(); updatePersonSelect();
+}
+
+function updateFamilyUI() {
+  const familyInfo = document.getElementById('familyInfo');
+  familyInfo.innerHTML = '';
+  if (family) {
+    const familySpan = document.createElement('span');
+    familySpan.className = 'fm';
+    familySpan.innerHTML = '👨‍👩‍👧‍👦 ' + esc(family.name);
+    familyInfo.appendChild(familySpan);
+    document.getElementById('familySetup').style.display = 'none';
+    document.getElementById('familyMembersSection').style.display = 'block';
+    renderFamilyMembers();
+  } else {
+    document.getElementById('familySetup').style.display = 'block';
+    document.getElementById('familyMembersSection').style.display = 'none';
+  }
+}
+
+function renderFamilyMembers() {
+  const container = document.getElementById('familyMembers');
+  container.innerHTML = '';
+  members.forEach(function (member) {
+    const card = document.createElement('div');
+    card.className = 'ec';
+    card.innerHTML = '<div class="eh"><span class="et">' + esc(member.emoji) + ' ' + esc(member.name) + '</span><span class="b" style="background:' + (member.color || '#6200ee') + ';color:white">' + esc(member.role) + '</span></div><div class="etl">' + esc(member.name) + '</div>';
+    container.appendChild(card);
+  });
+  const box = document.getElementById('inviteBox');
+  if (family && family.inviteCode) {
+    box.style.display = 'flex';
+    document.getElementById('inviteCodeText').textContent = family.inviteCode;
+  } else {
+    box.style.display = 'none';
+  }
+  if (family) {
+    const addBtn = document.createElement('button');
+    addBtn.className = 'btn bs';
+    addBtn.textContent = '+ Mitglied hinzufügen';
+    addBtn.style.marginTop = '12px';
+    addBtn.onclick = function () {
+      const name = prompt('Name des neuen Mitglieds:');
+      if (!name) return;
+      const role = prompt('Rolle:', 'Kind') || 'Kind';
+      const emoji = prompt('Emoji:', '👧') || '👧';
+      const member = { id: randId('mem'), name: name, role: role, emoji: emoji, color: getColorForRole(role), createdAt: new Date().toISOString() };
+      members.push(member);
+      saveLocalState(); updatePersonSelect(); renderFamilyMembers();
+      if (isSynced()) memCol(family.inviteCode).doc(member.id).set(member).catch(function (err) { alert('Sync-Fehler: ' + err.message); });
+    };
+    container.appendChild(addBtn);
+  }
+}
+
+function copyInviteCode() {
+  const code = family && family.inviteCode;
+  if (!code) return;
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(code).then(function () { alert('Einladungscode kopiert: ' + code); }, function () { alert('Einladungscode: ' + code); });
+  } else {
+    alert('Einladungscode: ' + code);
+  }
+}
+
+function generateInviteCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const part = function (n) { let s = ''; for (let i = 0; i < n; i++) s += chars.charAt(Math.floor(Math.random() * chars.length)); return s; };
+  return part(4) + '-' + part(4);
+}
+
+function getColorForRole(role) {
+  const colors = { 'Mama': '#e91e63', 'Papa': '#2196f3', 'Kind': '#4caf50', 'Sonstiges': '#9c27b0', 'Mitglied': '#6200ee' };
+  return colors[role] || '#6200ee';
+}
+
+// ================= TERMINE =================
+function openAddDialog(event) {
+  if (event) {
+    editingEventId = event.id;
+    document.getElementById('dialogTitle').textContent = 'Termin bearbeiten';
+    document.getElementById('eventTitle').value = event.title;
+    document.getElementById('eventPerson').value = event.personId || 'family';
+    document.getElementById('eventDate').value = event.date;
+    document.getElementById('eventStartTime').value = event.startTime || '14:00';
+    document.getElementById('eventDuration').value = event.durationMinutes || 45;
+    document.getElementById('eventType').value = event.isTask ? 'task' : 'event';
+    document.getElementById('eventRecurrence').value = event.recurrence || 'none';
+    document.getElementById('eventNotes').value = event.notes || '';
+  } else {
+    editingEventId = null;
+    document.getElementById('dialogTitle').textContent = 'Neuer Termin';
+    document.getElementById('eventTitle').value = '';
+    const defaultPerson = myMemberId || (members.length > 0 ? members[0].id : 'family');
+    document.getElementById('eventPerson').value = defaultPerson;
+    document.getElementById('eventDate').value = selectedDate;
+    document.getElementById('eventStartTime').value = '14:00';
+    document.getElementById('eventDuration').value = 45;
+    document.getElementById('eventType').value = 'event';
+    document.getElementById('eventRecurrence').value = 'none';
+    document.getElementById('eventNotes').value = '';
+  }
+  document.getElementById('addDialog').classList.add('active');
+}
+
+function openEditDialog(id) {
+  const ev = events.find(function (e) { return e.id === id; });
+  if (ev) openAddDialog(ev);
+}
+
+function closeDialog() {
+  document.getElementById('addDialog').classList.remove('active');
+  editingEventId = null;
+}
+
+function saveEvent() {
+  const title = document.getElementById('eventTitle').value.trim();
+  const personId = document.getElementById('eventPerson').value;
+  const date = document.getElementById('eventDate').value;
+  const startTime = document.getElementById('eventStartTime').value;
+  const duration = parseInt(document.getElementById('eventDuration').value) || 45;
+  const type = document.getElementById('eventType').value;
+  const recurrence = document.getElementById('eventRecurrence').value;
+  const notes = document.getElementById('eventNotes').value.trim();
+
+  if (!title) { alert('Bitte geben Sie einen Titel ein'); return; }
+  if (!date) { alert('Bitte wählen Sie ein Datum'); return; }
+
+  const existing = editingEventId ? events.find(function (e) { return e.id === editingEventId; }) : null;
+  const event = {
+    id: editingEventId || randId('evt'),
+    title: title,
+    personId: personId,
+    date: date,
+    startTime: startTime,
+    durationMinutes: duration,
+    isTask: type === 'task',
+    recurrence: recurrence !== 'none' ? recurrence : null,
+    notes: notes,
+    isCompleted: existing ? existing.isCompleted : false,
+    createdAt: existing ? existing.createdAt : new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+
+  if (isSynced()) {
+    evCol(family.inviteCode).doc(event.id).set(event).catch(function (err) { alert('Sync-Fehler: ' + err.message); });
+  } else {
+    const index = events.findIndex(function (e) { return e.id === event.id; });
+    if (index !== -1) events[index] = event; else events.push(event);
+    saveLocalState(); renderAllTabs(); updateDaySelector();
+  }
+  closeDialog();
+}
+
+function toggleComplete(eventId) {
+  const event = events.find(function (e) { return e.id === eventId; });
+  if (!event) return;
+  event.isCompleted = !event.isCompleted;
+  event.updatedAt = new Date().toISOString();
+  if (isSynced()) {
+    evCol(family.inviteCode).doc(event.id).set(event).catch(function (err) { alert('Sync-Fehler: ' + err.message); });
+  } else {
+    saveLocalState(); renderAllTabs(); updateDaySelector();
+  }
+}
+
+function showDeleteDialog(eventId) {
+  const event = events.find(function (e) { return e.id === eventId; });
+  if (event) {
+    deleteEventId = eventId;
+    document.getElementById('deleteEventTitle').textContent = '"' + event.title + '"';
+    document.getElementById('deleteDialog').classList.add('active');
+  }
+}
+
+function closeDeleteDialog() {
+  document.getElementById('deleteDialog').classList.remove('active');
+  deleteEventId = null;
+}
+
+function confirmDelete() {
+  if (!deleteEventId) return;
+  if (isSynced()) {
+    evCol(family.inviteCode).doc(deleteEventId).delete().catch(function (err) { alert('Sync-Fehler: ' + err.message); });
+  } else {
+    events = events.filter(function (e) { return e.id !== deleteEventId; });
+    saveLocalState(); renderAllTabs(); updateDaySelector();
+  }
+  closeDeleteDialog();
+}
+
+// ================= TABS & RENDERING =================
+function switchTab(tabName) {
+  document.querySelectorAll('.ntb').forEach(function (tab) { tab.classList.remove('active'); });
+  document.querySelectorAll('.wv').forEach(function (view) { view.classList.remove('active'); });
+  document.querySelector('[onclick="switchTab(\'' + tabName + '\')"]').classList.add('active');
+  document.getElementById(tabName).classList.add('active');
+  switch (tabName) {
+    case 'today': renderToday(); break;
+    case 'week': renderWeek(); break;
+    case 'schedule': renderSchedule(); break;
+    case 'family': updateFamilyUI(); break;
+  }
+}
+
+function renderAllTabs() { renderToday(); renderWeek(); renderSchedule(); }
+
+function updateDaySelector() {
+  const container = document.getElementById('daySelector');
+  const weekContainer = document.getElementById('weekDaySelector');
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const days = [];
+  for (let i = 0; i < 7; i++) {
+    const date = new Date(today);
+    date.setDate(date.getDate() + i);
+    days.push({
+      date: date.toISOString().split('T')[0],
+      dayName: getDayName(date.getDay()),
+      dayNumber: date.getDate(),
+      isToday: i === 0,
+      isSelected: date.toISOString().split('T')[0] === selectedDate
+    });
+  }
+  container.innerHTML = '';
+  days.forEach(function (day) {
+    const dayEvents = events.filter(function (e) { return e.date === day.date; });
+    const memberIds = [];
+    dayEvents.forEach(function (e) { if (memberIds.indexOf(e.personId) === -1) memberIds.push(e.personId); });
+    const dots = memberIds.slice(0, 4).map(function (id) {
+      const member = members.find(function (m) { return m.id === id; });
+      const color = member ? (member.color || '#6200ee') : getColorForRole('Mitglied');
+      return '<span class="edot" style="background:' + color + '"></span>';
+    }).join('');
+    const dayChip = document.createElement('div');
+    dayChip.className = 'dc ' + (day.isToday ? 'today ' : '') + (day.isSelected ? 'selected' : '');
+    dayChip.onclick = function () { selectDate(day.date); };
+    dayChip.innerHTML = '<div class="dn">' + (day.isToday ? 'HEUTE' : day.dayName) + '</div><div class="dnb">' + day.dayNumber + '</div><div class="ed">' + (dots || '<span style="opacity:0">.</span>') + '</div>';
+    container.appendChild(dayChip);
+  });
+  weekContainer.innerHTML = container.innerHTML;
+}
+
+function selectDate(date) {
+  selectedDate = date;
+  currentDate = date;
+  updateDaySelector();
+  renderToday();
+  renderWeek();
+}
+
+function getDayName(dayIndex) { return ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'][dayIndex]; }
+function getFullDayName(dayIndex) { return ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'][dayIndex]; }
+function getMonthName(monthIndex) { return ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'][monthIndex]; }
+
+function formatDate(dateStr) {
+  const date = new Date(dateStr + 'T00:00:00');
+  return getFullDayName(date.getDay()) + ', ' + date.getDate() + '. ' + getMonthName(date.getMonth()) + ' ' + date.getFullYear();
+}
+function formatTime(timeStr) { if (!timeStr) return ''; const p = timeStr.split(':'); return p[0] + ':' + p[1]; }
+function formatDuration(minutes) {
+  if (minutes < 60) return minutes + ' Min.';
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  return mins > 0 ? hours + 'h ' + mins + 'min' : hours + 'h';
+}
+function getRecurrenceLabel(recurrence) {
+  const labels = { 'daily': 'Täglich', 'weekly': 'Wöchentlich', 'monthly': 'Monatlich', 'workdays': 'Mo-Fr', 'biweekly': 'Alle 2 Wochen' };
+  return labels[recurrence] || recurrence;
+}
+
+function endTimeOf(event) {
+  const parts = event.startTime ? event.startTime.split(':') : ['14', '00'];
+  const end = new Date(2024, 0, 1, parseInt(parts[0]), parseInt(parts[1]) + (event.durationMinutes || 45));
+  return String(end.getHours()).padStart(2, '0') + ':' + String(end.getMinutes()).padStart(2, '0');
+}
+
+function personLabel(personId) {
+  const member = members.find(function (m) { return m.id === personId; });
+  return member ? { emoji: member.emoji, name: member.name } : { emoji: '👤', name: 'Familie' };
+}
+
+function eventCardHTML(event) {
+  const p = personLabel(event.personId);
+  return '<div class="ec ' + (event.isCompleted ? 'completed ' : '') + (event.isTask ? 'task' : '') + '">' +
+    '<div class="eh"><span class="et">' + formatTime(event.startTime) + ' - ' + endTimeOf(event) + ' (' + formatDuration(event.durationMinutes || 45) + ')</span><div class="eb">' +
+    (event.recurrence ? '<span class="b recurring">🔄 ' + getRecurrenceLabel(event.recurrence) + '</span>' : '') +
+    (event.isTask ? '<span class="b task">✅ Aufgabe</span>' : '') +
+    '</div></div>' +
+    '<div class="etl">' + esc(event.title) + '</div>' +
+    '<div style="margin-top:8px"><span class="ep">' + esc(p.emoji) + ' ' + esc(p.name) + '</span></div>' +
+    (event.notes ? '<div style="margin-top:8px;color:#666;font-size:.9rem">' + esc(event.notes) + '</div>' : '') +
+    '<div class="ea">' +
+    '<button class="bi ' + (event.isCompleted ? 'complete' : '') + '" onclick="toggleComplete(\'' + event.id + '\')">' + (event.isCompleted ? '✓ Erledigt' : '✓ Als erledigt markieren') + '</button>' +
+    '<button class="bi" onclick="openEditDialog(\'' + event.id + '\')">⚙️ Bearbeiten</button>' +
+    '<button class="bi delete" onclick="showDeleteDialog(\'' + event.id + '\')">🗑️ Löschen</button>' +
+    '</div></div>';
+}
+
+function renderToday() {
+  const today = new Date().toISOString().split('T')[0];
+  const activeDate = selectedDate || today;
+  const todayEvents = events.filter(function (e) { return e.date === activeDate; });
+  document.getElementById('todayTitle').textContent = formatDate(activeDate);
+  document.getElementById('todaySubtitle').textContent = todayEvents.length + ' Termine';
+  document.getElementById('todayEventsCount').textContent = todayEvents.length + ' Termine';
+  updateDaySelector();
+  const container = document.getElementById('todayEvents');
+  if (todayEvents.length === 0) {
+    container.innerHTML = '<div class="es" style="text-align:center;padding:40px 20px"><div class="esi">🌞</div><h3>Keine Termine für diesen Tag</h3><p>Tippen Sie auf "+ Neu", um einen Termin hinzuzufügen</p></div>';
+    return;
+  }
+  let html = '';
+  todayEvents.sort(function (a, b) { return (a.startTime || '').localeCompare(b.startTime || ''); }).forEach(function (e) { html += eventCardHTML(e); });
+  container.innerHTML = html;
+}
+
+function renderWeek() {
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  let weekEvents = [];
+  for (let i = 0; i < 7; i++) {
+    const date = new Date(today);
+    date.setDate(date.getDate() + i);
+    const dateStr = date.toISOString().split('T')[0];
+    events.filter(function (e) { return e.date === dateStr; }).forEach(function (evt) { weekEvents.push(evt); });
+  }
+  weekEvents.sort(function (a, b) { return a.date.localeCompare(b.date) || (a.startTime || '').localeCompare(b.startTime || ''); });
+  const container = document.getElementById('weekEvents');
+  if (weekEvents.length === 0) {
+    container.innerHTML = '<div class="es" style="text-align:center;padding:40px 20px"><div class="esi">📆</div><h3>Keine Termine in dieser Woche</h3></div>';
+    return;
+  }
+  const groupedByDate = {};
+  weekEvents.forEach(function (event) {
+    if (!groupedByDate[event.date]) groupedByDate[event.date] = [];
+    groupedByDate[event.date].push(event);
+  });
+  let html = '';
+  for (const date in groupedByDate) {
+    html += '<div style="margin-bottom:20px"><div class="sh"><span class="st">' + formatDate(date) + '</span><span style="color:var(--osv);font-size:.85rem">' + groupedByDate[date].length + ' Termine</span></div>';
+    groupedByDate[date].forEach(function (event) { html += eventCardHTML(event); });
+    html += '</div>';
+  }
+  container.innerHTML = html;
+}
+
+function renderSchedule() {
+  const container = document.getElementById('allEvents');
+  const allEvents = events.slice().sort(function (a, b) { return a.date.localeCompare(b.date) || (a.startTime || '').localeCompare(b.startTime || ''); });
+  const totalEvents = allEvents.filter(function (e) { return !e.isTask; }).length;
+  const totalTasks = allEvents.filter(function (e) { return e.isTask; }).length;
+  const completedCount = allEvents.filter(function (e) { return e.isCompleted; }).length;
+  const recurringCount = allEvents.filter(function (e) { return e.recurrence; }).length;
+  document.getElementById('totalEvents').textContent = totalEvents;
+  document.getElementById('totalTasks').textContent = totalTasks;
+  document.getElementById('completedCount').textContent = completedCount;
+  document.getElementById('recurringCount').textContent = recurringCount;
+  if (allEvents.length === 0) {
+    container.innerHTML = '<div class="es" style="text-align:center;padding:40px 20px"><div class="esi">📋</div><h3>Keine Einträge vorhanden</h3><p>Tippen Sie auf "+ Neu", um einen Termin hinzuzufügen</p></div>';
+    return;
+  }
+  const groupedByDate = {};
+  allEvents.forEach(function (event) {
+    if (!groupedByDate[event.date]) groupedByDate[event.date] = [];
+    groupedByDate[event.date].push(event);
+  });
+  let html = '';
+  for (const date in groupedByDate) {
+    html += '<div style="margin-bottom:20px"><div class="sh"><span class="st">' + formatDate(date) + '</span><span style="color:var(--osv);font-size:.85rem">' + groupedByDate[date].length + ' Einträge</span></div>';
+    groupedByDate[date].forEach(function (event) { html += eventCardHTML(event); });
+    html += '</div>';
+  }
+  container.innerHTML = html;
+}
+
+function updatePersonSelect() {
+  const select = document.getElementById('eventPerson');
+  select.innerHTML = '';
+  const familyOption = document.createElement('option');
+  familyOption.value = 'family';
+  familyOption.textContent = '👨‍👩‍👧‍👦 Familie';
+  select.appendChild(familyOption);
+  members.forEach(function (member) {
+    const option = document.createElement('option');
+    option.value = member.id;
+    option.textContent = member.emoji + ' ' + member.name;
+    select.appendChild(option);
+  });
+}
+
+// ================= START =================
+async function init() {
+  loadLocal();
+  document.getElementById('eventDate').value = currentDate;
+  document.getElementById('eventStartTime').value = '14:00';
+  if (!family && members.length === 0) {
+    members.push({ id: 'user1', name: 'Nutzer', role: 'Mitglied', emoji: '👤', color: '#6200ee' });
+    saveLocalState();
+  }
+  updatePersonSelect(); updateFamilyUI(); renderAllTabs(); updateDaySelector();
+  if (SYNC_ENABLED) {
+    setSync('Verbinde…');
+    await initSync();
+  } else {
+    setSync('Lokal (Offline)');
+  }
+}
+
+init();
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('sw.js').catch(function () { });
+  });
+}
+</script>
+</body>
+</html>

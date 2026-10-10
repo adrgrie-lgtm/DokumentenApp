@@ -1,0 +1,16 @@
+{
+  "name": "Familien-Tagesplaner",
+  "short_name": "Planer",
+  "description": "Gemeinsame Termine und Aufgaben für die Familie",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f5f5f5",
+  "theme_color": "#6200ee",
+  "lang": "de",
+  "icons": [
+    { "src": "icon.svg", "sizes": "512x512", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "icon.svg", "sizes": "512x512", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}
