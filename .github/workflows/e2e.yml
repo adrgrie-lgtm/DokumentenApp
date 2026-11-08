@@ -27,7 +27,7 @@ jobs:
       SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
       SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
       SUPABASE_PROJECT_ID: ${{ secrets.VITE_SUPABASE_PROJECT_ID }}
-      LOVABLE_API_KEY: ${{ secrets.LOVABLE_API_KEY }}
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
       E2E_EMAIL: ${{ secrets.E2E_EMAIL }}
       E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
     steps:
@@ -48,7 +48,9 @@ jobs:
             bun-${{ runner.os }}-
 
       - name: Abhängigkeiten installieren
-        run: bun install --frozen-lockfile
+        # Ohne --frozen-lockfile: bun.lock ist nicht eingecheckt und wird
+        # durch bun install neu erzeugt.
+        run: bun install
 
       # Playwright-Version ermitteln (vor dem Cache-Schritt, da der Key davon
       # abhängt) — Chromium ist mehrere hundert MB groß und ändert sich nur,
