@@ -1,7 +1,9 @@
-// Server-only helper for calling the Lovable AI Gateway.
+// Server-only helper for calling the OpenRouter API (OpenAI-kompatibel).
 // Never imported into client bundles (blocked by the .server.ts filename).
-const GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
-const MODEL = "google/gemini-3-flash-preview";
+const GATEWAY_URL =
+  process.env.OPENROUTER_BASE_URL ??
+    "https://openrouter.ai/api/v1/chat/completions";
+const MODEL = process.env.OPENROUTER_MODEL ?? "google/gemini-3-flash-preview";
 
 export type GatewayContentBlock =
   | { type: "text"; text: string }
@@ -26,14 +28,15 @@ async function callGateway(
   messages: GatewayMessage[],
   opts: { json?: boolean } = {},
 ): Promise<string> {
-  const apiKey = process.env.LOVABLE_API_KEY;
-  if (!apiKey) throw new GatewayError(500, "KI ist nicht konfiguriert (LOVABLE_API_KEY fehlt).");
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) throw new GatewayError(500, "KI ist nicht konfiguriert (OPENROUTER_API_KEY fehlt).");
 
   const res = await fetch(GATEWAY_URL, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "Lovable-API-Key": apiKey,
+      Authorization: `Bearer ${apiKey}`,
+      "X-Title": "OneClick Dokumenten-Assistent",
     },
     body: JSON.stringify({
       model: MODEL,
