@@ -68,20 +68,20 @@ const RAND_RECHTS = 56; // ca. 19,8 mm
 const NUTZ_BREITE = SEITE_BREITE - RAND_LINKS - RAND_RECHTS;
 
 // Zeilenraster: alle Schriftgrößen teilen sich dieselbe Zeilenhöhe.
-// 10,5 pt Schrift auf 15 pt Zeile = gut lesbar + exakt stapelbar.
+// 10 pt Schrift auf 15 pt Zeile = gut lesbar + exakt stapelbar.
 const ZEILEN_HOEHE = 15;
 const ZEILEN_PRO_SEITE = Math.floor(
   (SEITE_HOEHE - RAND_OBEN - RAND_UNTEN) / ZEILEN_HOEHE,
 );
 
 // Schriftgrößen (alle < ZEILEN_HOEHE, damit kein Überlapp entsteht)
-const S_TITEL = 20;
-const S_DOK_TITEL = 13;
+const S_TITEL = 16;
+const S_DOK_TITEL = 12.5;
 const S_META = 9;
-const S_RUBRIK = 13;
-const S_LABEL = 10.5;
-const S_WERT = 10.5;
-const S_ERKLAERUNG = 8.5;
+const S_RUBRIK = 12.5;
+const S_LABEL = 10;
+const S_WERT = 10;
+const S_ERKLAERUNG = 8;
 const S_FUSS = 7.5;
 
 function masterDataText(m: MasterData | null): string {
