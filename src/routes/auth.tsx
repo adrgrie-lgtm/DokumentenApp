@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { FileText, Loader2, Mail, Lock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable/index";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -110,19 +109,22 @@ function AuthPage() {
     }
   };
 
-  const handleOAuth = async (provider: "google" | "microsoft") => {
+  const handleOAuth = async (provider: "google" | "azure") => {
     setBusy(true);
     try {
-      const result = await lovable.auth.signInWithOAuth(provider, {
-        redirect_uri: `${window.location.origin}${next ?? "/dashboard"}`,
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo: `${window.location.origin}${next ?? "/dashboard"}`,
+        },
       });
-      if (result.error) {
-        toast.error("Anmeldung fehlgeschlagen. Bitte erneut versuchen.");
+      if (error) {
+        toast.error(error.message || "Anmeldung fehlgeschlagen. Bitte erneut versuchen.");
         setBusy(false);
         return;
       }
-      if (result.redirected) return;
-      goAfterAuth();
+      // Der Browser leitet zum OAuth-Anbieter weiter; nach dem Callback
+      // übernimmt die normale Session-Erkennung (lib/auth).
     } catch {
       toast.error("Anmeldung fehlgeschlagen.");
       setBusy(false);
@@ -194,7 +196,7 @@ function AuthPage() {
               variant="outline"
               className="w-full"
               disabled={busy}
-              onClick={() => handleOAuth("microsoft")}
+              onClick={() => handleOAuth("azure")}
             >
               <MicrosoftIcon />
               <span className="ml-2">Mit Microsoft anmelden</span>
