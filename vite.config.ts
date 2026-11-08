@@ -1,11 +1,12 @@
-// @lovable.dev/vite-tanstack-config already includes the following — do NOT add them manually
-// or the app will break with duplicate plugins:
-//   - tanstackStart, viteReact, tailwindcss, tsConfigPaths, nitro (build-only using cloudflare as a default target),
-//     componentTagger (dev-only), VITE_* env injection, @ path alias, React/TanStack dedupe,
-//     error logger plugins, and sandbox detection (port/host/strictPort).
-// You can pass additional config via defineConfig({ vite: { ... }, etc... }) if needed.
-import { defineConfig } from "@lovable.dev/vite-tanstack-config";
-import { mcpPlugin } from "@lovable.dev/mcp-js/stacks/tanstack/vite";
+// Native TanStack-Start-Konfiguration (ohne Framework-Wrapper).
+// Alle Plugins sind hier explizit aufgelistet: tsconfig-Paths, Tailwind,
+// React und Nitro. Der tanstackStart-Plugin (inkl. Router-Codegenerierung)
+// wird über defineConfig von @tanstack/react-start/config ergänzt.
+import { defineConfig } from "@tanstack/react-start/config";
+import tailwindcss from "@tailwindcss/vite";
+import viteReact from "@vitejs/plugin-react";
+import viteTsConfigPaths from "vite-tsconfig-paths";
+import nitro from "nitro/vite";
 
 export default defineConfig({
   tanstackStart: {
@@ -14,6 +15,11 @@ export default defineConfig({
     server: { entry: "server" },
   },
   vite: {
-    plugins: [mcpPlugin()],
+    plugins: [
+      viteTsConfigPaths({ projects: ["./tsconfig.json"] }),
+      tailwindcss(),
+      viteReact(),
+      nitro(),
+    ],
   },
 });
