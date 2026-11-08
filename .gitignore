@@ -33,3 +33,6 @@ dist-ssr
 e2e/.auth/
 test-results/
 playwright-report/
+# Lokale Umgebungsvariablen niemals committen
+.env
+.env.*
