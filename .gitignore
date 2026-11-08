@@ -33,7 +33,6 @@ dist-ssr
 e2e/.auth/
 test-results/
 playwright-report/
-
-# Env-Dateien (nie committen – publishable Keys laufen über CI-Secrets / lokale .env)
+# Lokale Umgebungsvariablen niemals committen
 .env
 .env.*
