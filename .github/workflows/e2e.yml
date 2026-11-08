@@ -13,7 +13,9 @@ concurrency:
 jobs:
   e2e:
     name: Playwright (${{ matrix.project }})
-    runs-on: ubuntu-latest
+    # ubuntu-latest ist seit 19.10.2026 Ubuntu 26; das gepinnte Playwright
+    # 1.56 unterstützt dessen Browser-Abhängigkeiten noch nicht.
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     strategy:
       fail-fast: false
