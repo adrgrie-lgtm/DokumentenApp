@@ -23,13 +23,10 @@ Eine andere Adresse lässt sich per `E2E_BASE_URL` setzen.
 
 ## Anmeldung
 
-`global-setup.ts` erzeugt den angemeldeten Browser-Zustand:
+`global-setup.ts` erzeugt den angemeldeten Browser-Zustand über einen
+echten Login mit `E2E_EMAIL` und `E2E_PASSWORD`.
 
-1. aus einer vorhandenen Session in der Umgebung
-   (`LOVABLE_BROWSER_SUPABASE_SESSION_JSON` / `_STORAGE_KEY` / `_COOKIES_JSON`), oder
-2. über einen echten Login mit `E2E_EMAIL` und `E2E_PASSWORD`.
-
-Ist nichts davon gesetzt, überspringen sich die angemeldeten Tests selbst.
+Ist beides nicht gesetzt, überspringen sich die angemeldeten Tests selbst.
 
 Hinweis: Der Upload-Test legt echte Testdokumente (`e2e-…`) im Konto an.
 
@@ -45,7 +42,7 @@ Benötigte Repository-Secrets:
 | Secret                                                                     | Zweck                                  |
 | -------------------------------------------------------------------------- | -------------------------------------- |
 | `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `VITE_SUPABASE_PROJECT_ID` | Backend-Verbindung der App        |
-| `LOVABLE_API_KEY`                                                          | KI-Funktionen                          |
+| `OPENROUTER_API_KEY`                                                      | KI-Funktionen (OpenRouter)              |
 | `E2E_EMAIL`, `E2E_PASSWORD`                                                | Login für die angemeldeten Tests       |
 
 Ohne `E2E_EMAIL`/`E2E_PASSWORD` überspringen sich die angemeldeten Tests, der
