@@ -1,7 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useServerFn } from "@tanstack/react-start";
 import {
   UploadCloud,
   Search,
@@ -11,14 +10,21 @@ import {
   AlertCircle,
   CheckCircle2,
   Clock,
+  KeyRound,
 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/lib/auth";
-import { analyzeDocument } from "@/lib/documents.functions";
+import {
+  listDocuments,
+  saveDocumentWithFile,
+  updateDocument,
+  uid,
+  type LocalDocument,
+} from "@/lib/db";
+import { AiNotConfiguredError, analyzeDocument } from "@/lib/ai-client";
 import {
   CATEGORIES,
   CATEGORY_MAP,
   STATUS_LABEL,
+  normalizeCategory,
   type DocumentStatus,
 } from "@/lib/categories";
 import { Button } from "@/components/ui/button";
@@ -31,26 +37,21 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
     meta: [
       { title: "Dashboard – OneClick Dokumenten-Assistent" },
-      { name: "description", content: "Alle Dokumente, Status und anstehende Fristen auf einen Blick verwalten." },
+      {
+        name: "description",
+        content: "Alle Dokumente, Status und anstehende Fristen auf einen Blick verwalten.",
+      },
       { property: "og:title", content: "Dashboard – OneClick Dokumenten-Assistent" },
-      { property: "og:description", content: "Alle Dokumente, Status und anstehende Fristen auf einen Blick verwalten." },
+      {
+        property: "og:description",
+        content: "Alle Dokumente, Status und anstehende Fristen auf einen Blick verwalten.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
   component: Dashboard,
 });
-
-interface DocRow {
-  id: string;
-  title: string;
-  file_name: string;
-  mime_type: string | null;
-  category: string;
-  status: DocumentStatus;
-  is_favorite: boolean;
-  created_at: string;
-}
 
 const ACCEPTED = [
   "application/pdf",
@@ -61,11 +62,6 @@ const ACCEPTED = [
 ];
 const MAX_SIZE = 20 * 1024 * 1024;
 
-function extOf(name: string) {
-  const i = name.lastIndexOf(".");
-  return i >= 0 ? name.slice(i + 1).toLowerCase() : "bin";
-}
-
 function StatusPill({ status }: { status: DocumentStatus }) {
   const map = {
     hochgeladen: { icon: Clock, cls: "bg-secondary text-secondary-foreground" },
@@ -75,7 +71,12 @@ function StatusPill({ status }: { status: DocumentStatus }) {
   } as const;
   const { icon: Icon, cls } = map[status];
   return (
-    <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium", cls)}>
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
+        cls,
+      )}
+    >
       <Icon className={cn("h-3 w-3", status === "wird_analysiert" && "animate-spin")} />
       {STATUS_LABEL[status]}
     </span>
@@ -83,9 +84,7 @@ function StatusPill({ status }: { status: DocumentStatus }) {
 }
 
 function Dashboard() {
-  const { user } = useAuth();
   const queryClient = useQueryClient();
-  const runAnalyze = useServerFn(analyzeDocument);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const [dragOver, setDragOver] = useState(false);
@@ -95,19 +94,56 @@ function Dashboard() {
 
   const { data: documents = [], isLoading } = useQuery({
     queryKey: ["documents"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("documents")
-        .select("id, title, file_name, mime_type, category, status, is_favorite, created_at")
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data as DocRow[];
-    },
+    queryFn: () => listDocuments(),
   });
+
+  const runAnalysis = useCallback(
+    async (docId: string, bytes: ArrayBuffer, mime: string | null, fileName: string) => {
+      const { saveAnalysis } = await import("@/lib/db");
+      await updateDocument(docId, { status: "wird_analysiert" });
+      await queryClient.invalidateQueries({ queryKey: ["documents"] });
+      try {
+        const result = await analyzeDocument(bytes, mime, fileName);
+        await saveAnalysis({
+          document_id: docId,
+          doc_type: result.doc_type ?? null,
+          summary: result.summary ?? null,
+          deadlines: result.deadlines ?? [],
+          contacts: result.contacts ?? [],
+          required_fields: result.required_fields ?? [],
+          missing_info: result.missing_info ?? [],
+          field_explanations: result.field_explanations ?? [],
+        });
+        // Titel nur überschreiben, wenn die KI einen geliefert hat – sonst
+        // würde `title: undefined` den gespeicherten Titel löschen.
+        const patch: Partial<LocalDocument> = {
+          status: "analysiert",
+          category: normalizeCategory(result.category),
+        };
+        if (result.title?.trim()) patch.title = result.title.trim();
+        await updateDocument(docId, patch);
+      } catch (err) {
+        if (err instanceof AiNotConfiguredError) {
+          await updateDocument(docId, { status: "hochgeladen" });
+          toast.info(
+            "Dokument gespeichert. Für die Analyse bitte einen KI-Schlüssel in den Einstellungen hinterlegen.",
+            {
+              duration: 6000,
+            },
+          );
+        } else {
+          await updateDocument(docId, { status: "fehler" });
+          toast.error(err instanceof Error ? err.message : "Analyse fehlgeschlagen");
+        }
+      } finally {
+        await queryClient.invalidateQueries({ queryKey: ["documents"] });
+      }
+    },
+    [queryClient],
+  );
 
   const handleFiles = useCallback(
     async (files: FileList | File[]) => {
-      if (!user) return;
       const list = Array.from(files);
       for (const file of list) {
         if (!ACCEPTED.includes(file.type)) {
@@ -118,38 +154,29 @@ function Dashboard() {
           toast.error(`${file.name}: Datei ist größer als 20 MB`);
           continue;
         }
-        const docId = crypto.randomUUID();
-        const path = `${user.id}/${docId}.${extOf(file.name)}`;
-        setUploads((u) => ({ ...u, [docId]: 10 }));
+        const docId = uid();
+        setUploads((u) => ({ ...u, [docId]: 30 }));
         try {
-          const { error: upErr } = await supabase.storage
-            .from("documents")
-            .upload(path, file, { contentType: file.type, upsert: false });
-          if (upErr) throw upErr;
-          setUploads((u) => ({ ...u, [docId]: 60 }));
-
-          const { error: insErr } = await supabase.from("documents").insert({
-            id: docId,
-            user_id: user.id,
-            title: file.name.replace(/\.[^.]+$/, ""),
-            file_name: file.name,
-            file_path: path,
-            mime_type: file.type,
-            file_size: file.size,
-            status: "hochgeladen",
-          });
-          if (insErr) throw insErr;
-
+          const bytes = await file.arrayBuffer();
+          setUploads((u) => ({ ...u, [docId]: 70 }));
+          await saveDocumentWithFile(
+            {
+              id: docId,
+              title: file.name.replace(/\.[^.]+$/, ""),
+              file_name: file.name,
+              mime_type: file.type,
+              file_size: file.size,
+              category: "sonstiges",
+              status: "hochgeladen",
+              is_favorite: false,
+            },
+            bytes,
+          );
           setUploads((u) => ({ ...u, [docId]: 100 }));
           await queryClient.invalidateQueries({ queryKey: ["documents"] });
 
-          // Kick off AI analysis (non-blocking for the UI).
-          runAnalyze({ data: { documentId: docId } })
-            .then(() => queryClient.invalidateQueries({ queryKey: ["documents"] }))
-            .catch((err) => {
-              toast.error(err instanceof Error ? err.message : "Analyse fehlgeschlagen");
-              queryClient.invalidateQueries({ queryKey: ["documents"] });
-            });
+          // KI-Analyse im Hintergrund anstoßen (blockiert die UI nicht).
+          void runAnalysis(docId, bytes, file.type, file.name);
         } catch (err) {
           toast.error(
             `${file.name}: ${err instanceof Error ? err.message : "Upload fehlgeschlagen"}`,
@@ -162,14 +189,11 @@ function Dashboard() {
         }
       }
     },
-    [user, queryClient, runAnalyze],
+    [queryClient, runAnalysis],
   );
 
-  const toggleFavorite = async (doc: DocRow) => {
-    await supabase
-      .from("documents")
-      .update({ is_favorite: !doc.is_favorite })
-      .eq("id", doc.id);
+  const toggleFavorite = async (doc: LocalDocument) => {
+    await updateDocument(doc.id, { is_favorite: !doc.is_favorite });
     queryClient.invalidateQueries({ queryKey: ["documents"] });
   };
 
@@ -194,6 +218,7 @@ function Dashboard() {
         <h1 className="text-2xl font-bold">Dashboard</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Laden Sie Behördenformulare, PDFs oder Fotos hoch – die KI analysiert sie automatisch.
+          Alles bleibt lokal in diesem Browser.
         </p>
       </div>
 
@@ -246,10 +271,22 @@ function Dashboard() {
               </div>
             ))}
             <p className="text-xs text-muted-foreground">
-              {uploadingCount} Datei(en) werden hochgeladen …
+              {uploadingCount} Datei(en) werden gespeichert …
             </p>
           </div>
         )}
+      </div>
+
+      {/* Hinweis ohne KI-Schlüssel */}
+      <div className="flex items-start gap-2 rounded-lg bg-secondary/60 p-3 text-xs text-secondary-foreground">
+        <KeyRound className="mt-0.5 h-4 w-4 shrink-0" />
+        <span>
+          Für Analyse, Chat und Formular-Ausfüllung wird ein KI-Schlüssel benötigt –{" "}
+          <Link to="/einstellungen" className="font-medium text-primary hover:underline">
+            hier in den Einstellungen hinterlegen
+          </Link>
+          .
+        </span>
       </div>
 
       {/* Filters */}
@@ -308,7 +345,7 @@ function Dashboard() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((doc) => {
-            const cat = CATEGORY_MAP[doc.category as keyof typeof CATEGORY_MAP] ?? CATEGORY_MAP.sonstiges;
+            const cat = CATEGORY_MAP[doc.category] ?? CATEGORY_MAP.sonstiges;
             const Icon = cat.icon;
             return (
               <div
@@ -320,21 +357,18 @@ function Dashboard() {
                   className="absolute right-4 top-4 text-muted-foreground hover:text-warning"
                   aria-label="Als Favorit markieren"
                 >
-                  <Star
-                    className={cn(
-                      "h-5 w-5",
-                      doc.is_favorite && "fill-warning text-warning",
-                    )}
-                  />
+                  <Star className={cn("h-5 w-5", doc.is_favorite && "fill-warning text-warning")} />
                 </button>
-                <Link to="/documents/$documentId" params={{ documentId: doc.id }} className="flex flex-1 flex-col">
+                <Link
+                  to="/documents/$documentId"
+                  params={{ documentId: doc.id }}
+                  className="flex flex-1 flex-col"
+                >
                   <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-secondary text-primary">
                     <Icon className="h-5 w-5" />
                   </span>
                   <h3 className="mt-4 line-clamp-2 pr-6 font-semibold">{doc.title}</h3>
-                  <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">
-                    {doc.file_name}
-                  </p>
+                  <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">{doc.file_name}</p>
                   <div className="mt-4 flex flex-wrap items-center gap-2">
                     <Badge variant="secondary">{cat.label}</Badge>
                     <StatusPill status={doc.status} />
