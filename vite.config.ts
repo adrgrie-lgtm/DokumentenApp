@@ -11,6 +11,13 @@ import viteTsConfigPaths from "vite-tsconfig-paths";
 import { nitro } from "nitro/vite";
 
 export default defineConfig({
+  // Port 8080 war frueher im Lovable-Config-Wrapper gesetzt; E2E-Tests und
+  // README erwarten ihn. strictPort: bei Konflikt hart fehlschlagen,
+  // statt stillschweigend auf einen anderen Port auszuweichen.
+  server: {
+    port: 8080,
+    strictPort: true,
+  },
   plugins: [
     tanstackStart({
       // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
