@@ -48,6 +48,15 @@ export function categoryLabel(value: string): string {
   return CATEGORY_MAP[value as DocumentCategory]?.label ?? "Sonstiges";
 }
 
+const VALID_CATEGORIES = new Set<string>(CATEGORIES.map((c) => c.value));
+
+/** Macht einen beliebigen (z. B. KI-gelieferten) Kategoriewert sicher. */
+export function normalizeCategory(value: unknown): DocumentCategory {
+  return typeof value === "string" && VALID_CATEGORIES.has(value)
+    ? (value as DocumentCategory)
+    : "sonstiges";
+}
+
 export type DocumentStatus = "hochgeladen" | "wird_analysiert" | "analysiert" | "fehler";
 
 export const STATUS_LABEL: Record<DocumentStatus, string> = {

@@ -1,18 +1,26 @@
 // Native TanStack-Start-Konfiguration (ohne Framework-Wrapper).
 // Alle Plugins sind hier explizit aufgelistet; der tanstackStart-Plugin
-// übernimmt Router-Codegenerierung, SSR-Entry und Server-Functions.
+// uebernimmt Router-Codegenerierung, SSR-Entry und Server-Functions.
 import { defineConfig } from "vite";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import tailwindcss from "@tailwindcss/vite";
 import viteReact from "@vitejs/plugin-react";
 import viteTsConfigPaths from "vite-tsconfig-paths";
-import nitro from "nitro/vite";
+// nitro 3.0.260603-beta exportiert die Vite-Plugin-Funktion nur als
+// Named Export (kein Default) – Default-Import laesst vite dev crashen.
+import { nitro } from "nitro/vite";
 
 export default defineConfig({
+  // Port 8080 war frueher im Lovable-Config-Wrapper gesetzt; E2E-Tests und
+  // README erwarten ihn. strictPort: bei Konflikt hart fehlschlagen,
+  // statt stillschweigend auf einen anderen Port auszuweichen.
+  server: {
+    port: 8080,
+    strictPort: true,
+  },
   plugins: [
     tanstackStart({
       // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
-      // nitro/vite builds from this
       server: { entry: "server" },
     }),
     viteTsConfigPaths({ projects: ["./tsconfig.json"] }),

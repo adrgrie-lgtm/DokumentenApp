@@ -19,7 +19,6 @@ import type { ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { ThemeProvider } from "../lib/theme";
-import { AuthProvider } from "../lib/auth";
 import { Toaster } from "../components/ui/sonner";
 
 function NotFoundComponent() {
@@ -47,7 +46,6 @@ function NotFoundComponent() {
 function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   console.error(error);
   const router = useRouter();
-
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
@@ -97,8 +95,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       {
         property: "og:description",
-        content:
-          "KI-gestützte Analyse von Behördenformularen in leicht verständlichem Deutsch.",
+        content: "KI-gestützte Analyse von Behördenformularen in leicht verständlichem Deutsch.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -134,11 +131,9 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
-        <AuthProvider>
-          {/* Required: nested routes render here. */}
-          <Outlet />
-          <Toaster richColors position="top-center" />
-        </AuthProvider>
+        {/* Required: nested routes render here. */}
+        <Outlet />
+        <Toaster richColors position="top-center" />
       </ThemeProvider>
     </QueryClientProvider>
   );

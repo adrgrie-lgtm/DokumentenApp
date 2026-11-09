@@ -4,31 +4,24 @@ Playwright-Suite, die die Kernpfade der App im echten Browser prüft:
 
 | Datei                 | Prüft                                                          |
 | --------------------- | -------------------------------------------------------------- |
-| `landing.spec.ts`     | Startseite: Titel, Hero, Metadaten, Navigation zur Anmeldung     |
-| `login.spec.ts`       | Auth-Formular, Tabs, Fehlermeldung, Schutz des Dashboards        |
-| `dashboard.spec.ts`   | Uploadzone, Suche/Filter, Navigation zu den Stammdaten           |
-| `upload.spec.ts`      | Formatvalidierung und echter PDF-Upload inkl. Statusanzeige      |
-| `pdf-preview.spec.ts` | Ausgefülltes PDF: Rendering, Seitenwahl, Zoom, Download          |
+| `landing.spec.ts`     | Startseite: Titel, Hero, Metadaten, Navigation zum Dashboard    |
+| `dashboard.spec.ts`   | Uploadzone, Suche/Filter, Navigation zu den Stammdaten          |
+| `upload.spec.ts`      | Formatvalidierung und echter PDF-Upload inkl. Statusanzeige     |
+| `pdf-preview.spec.ts` | Ausgefülltes PDF: Rendering, Seitenwahl, Zoom, Download         |
+
+Die App ist lokal-first (IndexedDB) und kennt keine Anmeldung – alle Tests
+laufen ohne Login und ohne Secrets.
 
 ## Ausführen
 
 ```bash
 bun run test:e2e                 # alle Tests
 bunx playwright test --project=public          # nur öffentliche Seiten
-bunx playwright test --project=authenticated   # nur angemeldete Bereiche
+bunx playwright test --project=authenticated   # nur App-Bereich
 ```
 
 Die App muss unter `http://localhost:8080` laufen (`bun run dev`).
 Eine andere Adresse lässt sich per `E2E_BASE_URL` setzen.
-
-## Anmeldung
-
-`global-setup.ts` erzeugt den angemeldeten Browser-Zustand über einen
-echten Login mit `E2E_EMAIL` und `E2E_PASSWORD`.
-
-Ist beides nicht gesetzt, überspringen sich die angemeldeten Tests selbst.
-
-Hinweis: Der Upload-Test legt echte Testdokumente (`e2e-…`) im Konto an.
 
 ## CI (GitHub Actions)
 
@@ -37,14 +30,6 @@ auf `main` und manuell. Die Projekte `public` und `authenticated` laufen paralle
 als Matrix; Playwright startet den Dev-Server selbst (`webServer` in
 `playwright.config.ts`). Reports und Traces landen als Artefakte im Job.
 
-Benötigte Repository-Secrets:
-
-| Secret                                                                     | Zweck                                  |
-| -------------------------------------------------------------------------- | -------------------------------------- |
-| `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `VITE_SUPABASE_PROJECT_ID` | Backend-Verbindung der App        |
-| `OPENROUTER_API_KEY`                                                      | KI-Funktionen (OpenRouter)              |
-| `E2E_EMAIL`, `E2E_PASSWORD`                                                | Login für die angemeldeten Tests       |
-
-Ohne `E2E_EMAIL`/`E2E_PASSWORD` überspringen sich die angemeldeten Tests, der
-`public`-Job läuft trotzdem.
-
+Es werden keine Repository-Secrets benötigt. Ohne KI-Schlüssel sind Analyse,
+Chat und Formular-Ausfüllung in den Tests deaktiviert – geprüft werden die
+Pfade, die ohne Schlüssel funktionieren (Upload, Liste, Suche, PDF-Vorschau).
