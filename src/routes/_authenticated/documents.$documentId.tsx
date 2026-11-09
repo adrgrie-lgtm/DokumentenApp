@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute, Link, useParams } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useServerFn } from "@tanstack/react-start";
 import {
   ArrowLeft,
   Loader2,
@@ -19,10 +18,20 @@ import {
   Printer,
   Eye,
 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { analyzeDocument, askAssistant } from "@/lib/documents.functions";
-import { generateFilledPdf } from "@/lib/pdf.functions";
-import { CATEGORY_MAP, STATUS_LABEL, type DocumentStatus } from "@/lib/categories";
+import {
+  getDocument,
+  getFileBytes,
+  getLatestAnalysis,
+  getMasterData,
+  listChat,
+  addChatMessage,
+  saveAnalysis,
+  updateDocument,
+  type LocalAnalysis,
+} from "@/lib/db";
+import { AiNotConfiguredError, analyzeDocument, askQuestion } from "@/lib/ai-client";
+import { generateFilledPdf } from "@/lib/pdf-local";
+import { CATEGORY_MAP, STATUS_LABEL, normalizeCategory } from "@/lib/categories";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -47,9 +56,15 @@ export const Route = createFileRoute("/_authenticated/documents/$documentId")({
   head: () => ({
     meta: [
       { title: "Dokument-Details – OneClick Dokumenten-Assistent" },
-      { name: "description", content: "KI-Analyse, Fristen, Pflichtfelder und Chat-Assistent zu Ihrem Dokument." },
+      {
+        name: "description",
+        content: "KI-Analyse, Fristen, Pflichtfelder und Chat-Assistent zu Ihrem Dokument.",
+      },
       { property: "og:title", content: "Dokument-Details – OneClick Dokumenten-Assistent" },
-      { property: "og:description", content: "KI-Analyse, Fristen, Pflichtfelder und Chat-Assistent zu Ihrem Dokument." },
+      {
+        property: "og:description",
+        content: "KI-Analyse, Fristen, Pflichtfelder und Chat-Assistent zu Ihrem Dokument.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -57,15 +72,7 @@ export const Route = createFileRoute("/_authenticated/documents/$documentId")({
   component: DocumentDetail,
 });
 
-interface Analysis {
-  doc_type: string | null;
-  summary: string | null;
-  deadlines: { label: string; date: string | null; description: string }[];
-  contacts: { name: string; role: string; details: string }[];
-  required_fields: { name: string; explanation: string; filled: boolean; value: string | null }[];
-  missing_info: string[];
-  field_explanations: { field: string; explanation: string }[];
-}
+type Analysis = LocalAnalysis;
 
 interface ChatMsg {
   id: string;
@@ -83,9 +90,6 @@ const SUGGESTIONS = [
 function DocumentDetail() {
   const { documentId } = useParams({ from: "/_authenticated/documents/$documentId" });
   const queryClient = useQueryClient();
-  const runAnalyze = useServerFn(analyzeDocument);
-  const ask = useServerFn(askAssistant);
-  const makePdf = useServerFn(generateFilledPdf);
 
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [question, setQuestion] = useState("");
@@ -99,66 +103,58 @@ function DocumentDetail() {
     mode: "original" | "generated";
   } | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
-
+  // Aktuelle Vorschau-URL für das Unmount-Cleanup (Ref statt State im Effect,
+  // damit kein eslint-disable nötig ist).
+  const pdfPreviewUrlRef = useRef<string | null>(null);
 
   const { data: doc, isLoading } = useQuery({
     queryKey: ["document", documentId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("documents")
-        .select("*")
-        .eq("id", documentId)
-        .single();
-      if (error) throw error;
-      return data;
-    },
-    refetchInterval: (q) =>
-      q.state.data?.status === "wird_analysiert" ? 3000 : false,
+    queryFn: () => getDocument(documentId),
+    refetchInterval: (q) => (q.state.data?.status === "wird_analysiert" ? 3000 : false),
   });
 
   const { data: analysis } = useQuery({
     queryKey: ["analysis", documentId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("document_analyses")
-        .select("*")
-        .eq("document_id", documentId)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (error) throw error;
-      return (data as Analysis | null) ?? null;
-    },
+    queryFn: () => getLatestAnalysis(documentId),
     enabled: doc?.status === "analysiert",
   });
 
   const { data: messages = [] } = useQuery({
     queryKey: ["chat", documentId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("chat_messages")
-        .select("id, role, content")
-        .eq("document_id", documentId)
-        .order("created_at", { ascending: true });
-      if (error) throw error;
-      return data as ChatMsg[];
+      const rows = await listChat(documentId);
+      return rows as ChatMsg[];
     },
   });
 
+  // Datei-Vorschau als Objekt-URL; hängt nur von ID und MIME-Typ ab
+  // (primitive Deps statt `doc`, damit kein Neu-Laden bei jedem Refetch).
+  const previewDocId = doc?.id ?? null;
+  const previewMime = doc?.mime_type ?? null;
+
   useEffect(() => {
     let active = true;
-    if (doc?.file_path) {
-      supabase.storage
-        .from("documents")
-        .createSignedUrl(doc.file_path, 3600)
-        .then(({ data }) => {
-          if (active) setPreviewUrl(data?.signedUrl ?? null);
-        });
+    let objectUrl: string | null = null;
+    if (previewDocId) {
+      getFileBytes(previewDocId).then((bytes) => {
+        if (!active) return;
+        if (bytes) {
+          objectUrl = URL.createObjectURL(
+            new Blob([bytes as unknown as BlobPart], {
+              type: previewMime ?? "application/octet-stream",
+            }),
+          );
+          setPreviewUrl(objectUrl);
+        } else {
+          setPreviewUrl(null);
+        }
+      });
     }
     return () => {
       active = false;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [doc?.file_path]);
+  }, [previewDocId, previewMime]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -168,43 +164,85 @@ function DocumentDetail() {
   const isPdf = doc?.mime_type === "application/pdf";
 
   const cat = useMemo(
-    () =>
-      doc
-        ? CATEGORY_MAP[doc.category as keyof typeof CATEGORY_MAP] ?? CATEGORY_MAP.sonstiges
-        : CATEGORY_MAP.sonstiges,
+    () => (doc ? (CATEGORY_MAP[doc.category] ?? CATEGORY_MAP.sonstiges) : CATEGORY_MAP.sonstiges),
     [doc],
   );
 
-  const handleReanalyze = async () => {
-    setAnalyzing(true);
+  const runAnalysisNow = async () => {
+    if (!doc) return;
+    const bytes = await getFileBytes(doc.id);
+    if (!bytes) throw new Error("Datei wurde nicht gefunden.");
+    await updateDocument(doc.id, { status: "wird_analysiert" });
+    await queryClient.invalidateQueries({ queryKey: ["document", documentId] });
     try {
-      await runAnalyze({ data: { documentId } });
+      const result = await analyzeDocument(bytes, doc.mime_type, doc.file_name);
+      await saveAnalysis({
+        document_id: doc.id,
+        doc_type: result.doc_type ?? null,
+        summary: result.summary ?? null,
+        deadlines: result.deadlines ?? [],
+        contacts: result.contacts ?? [],
+        required_fields: result.required_fields ?? [],
+        missing_info: result.missing_info ?? [],
+        field_explanations: result.field_explanations ?? [],
+      });
+      await updateDocument(doc.id, {
+        status: "analysiert",
+        category: normalizeCategory(result.category),
+        title: result.title?.trim() ? result.title.trim() : doc.title,
+      });
+    } catch (err) {
+      if (!(err instanceof AiNotConfiguredError)) {
+        await updateDocument(doc.id, { status: "fehler" });
+      } else {
+        await updateDocument(doc.id, { status: "hochgeladen" });
+      }
+      throw err;
+    } finally {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["document", documentId] }),
         queryClient.invalidateQueries({ queryKey: ["analysis", documentId] }),
       ]);
+    }
+  };
+
+  const handleReanalyze = async () => {
+    setAnalyzing(true);
+    try {
+      await runAnalysisNow();
       toast.success("Analyse abgeschlossen");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Analyse fehlgeschlagen");
+      if (err instanceof AiNotConfiguredError) {
+        toast.info("Bitte zuerst einen KI-Schlüssel in den Einstellungen hinterlegen.");
+      } else {
+        toast.error(err instanceof Error ? err.message : "Analyse fehlgeschlagen");
+      }
     } finally {
       setAnalyzing(false);
     }
   };
 
   const openPdfPreview = async () => {
-    if (generatingPdf) return;
+    if (generatingPdf || !doc) return;
     setGeneratingPdf(true);
     const toastId = toast.loading("Ausgefülltes PDF wird erstellt …");
     try {
-      const { fileBase64, fileName, mode } = await makePdf({ data: { documentId } });
-      const bytes = Uint8Array.from(atob(fileBase64), (c) => c.charCodeAt(0));
-      const blob = new Blob([bytes], { type: "application/pdf" });
+      const bytes = await getFileBytes(doc.id);
+      if (!bytes) throw new Error("Datei wurde nicht gefunden.");
+      const [master, latest] = await Promise.all([getMasterData(), getLatestAnalysis(doc.id)]);
+      const { blob, fileName, mode } = await generateFilledPdf({
+        fileBytes: bytes,
+        mime: doc.mime_type,
+        title: doc.title,
+        docType: latest?.doc_type ?? null,
+        requiredFields: latest?.required_fields ?? [],
+        master,
+      });
       const url = URL.createObjectURL(blob);
       // vorherige Vorschau aufräumen
-      setPdfPreview((prev) => {
-        if (prev) URL.revokeObjectURL(prev.url);
-        return { url, fileName, mode };
-      });
+      if (pdfPreviewUrlRef.current) URL.revokeObjectURL(pdfPreviewUrlRef.current);
+      pdfPreviewUrlRef.current = url;
+      setPdfPreview({ url, fileName, mode });
       toast.success(
         mode === "original"
           ? "PDF im Original-Layout ausgefüllt"
@@ -221,10 +259,9 @@ function DocumentDetail() {
   };
 
   const closePdfPreview = () => {
-    setPdfPreview((prev) => {
-      if (prev) URL.revokeObjectURL(prev.url);
-      return null;
-    });
+    if (pdfPreviewUrlRef.current) URL.revokeObjectURL(pdfPreviewUrlRef.current);
+    pdfPreviewUrlRef.current = null;
+    setPdfPreview(null);
   };
 
   const handlePdf = (action: "download" | "print") => {
@@ -263,18 +300,17 @@ function DocumentDetail() {
     }
   };
 
+  // Beim Verlassen der Seite die erzeugte Vorschau-URL freigeben.
   useEffect(() => {
     return () => {
-      if (pdfPreview) URL.revokeObjectURL(pdfPreview.url);
+      if (pdfPreviewUrlRef.current) URL.revokeObjectURL(pdfPreviewUrlRef.current);
+      pdfPreviewUrlRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-
 
   const send = async (text: string) => {
     const q = text.trim();
-    if (!q || sending) return;
+    if (!q || sending || !doc) return;
     setSending(true);
     setQuestion("");
     // Optimistic user message
@@ -283,10 +319,20 @@ function DocumentDetail() {
       { id: `tmp-${Date.now()}`, role: "user", content: q },
     ]);
     try {
-      await ask({ data: { documentId, question: q } });
+      const history = (await listChat(documentId)).map((m) => ({
+        role: m.role,
+        content: m.content,
+      }));
+      const answer = await askQuestion(q, doc.title, analysis ?? null, history);
+      await addChatMessage({ document_id: documentId, role: "user", content: q });
+      await addChatMessage({ document_id: documentId, role: "assistant", content: answer });
       await queryClient.invalidateQueries({ queryKey: ["chat", documentId] });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Antwort fehlgeschlagen");
+      if (err instanceof AiNotConfiguredError) {
+        toast.info("Bitte zuerst einen KI-Schlüssel in den Einstellungen hinterlegen.");
+      } else {
+        toast.error(err instanceof Error ? err.message : "Antwort fehlgeschlagen");
+      }
       await queryClient.invalidateQueries({ queryKey: ["chat", documentId] });
     } finally {
       setSending(false);
@@ -330,9 +376,7 @@ function DocumentDetail() {
                 <CatIcon className="mr-1 h-3 w-3" />
                 {cat.label}
               </Badge>
-              <span className="text-xs text-muted-foreground">
-                {STATUS_LABEL[doc.status as DocumentStatus]}
-              </span>
+              <span className="text-xs text-muted-foreground">{STATUS_LABEL[doc.status]}</span>
             </div>
           </div>
         </div>
@@ -348,14 +392,13 @@ function DocumentDetail() {
           <Button variant="outline" onClick={handleReanalyze} disabled={analyzing}>
             {analyzing ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
+              ) : (
               <RefreshCw className="mr-2 h-4 w-4" />
             )}
             Erneut analysieren
           </Button>
         </div>
       </div>
-
 
       <div className="grid gap-6 lg:grid-cols-5">
         {/* Left: preview + analysis */}
@@ -372,7 +415,11 @@ function DocumentDetail() {
               ) : isImage ? (
                 <img src={previewUrl} alt={doc.title} className="mx-auto rounded-lg" />
               ) : isPdf ? (
-                <iframe src={previewUrl} title={doc.title} className="h-[400px] w-full rounded-lg" />
+                <iframe
+                  src={previewUrl}
+                  title={doc.title}
+                  className="h-[400px] w-full rounded-lg"
+                />
               ) : (
                 <div className="py-10 text-center text-sm text-muted-foreground">
                   Vorschau nicht verfügbar.{" "}
@@ -432,13 +479,9 @@ function DocumentDetail() {
                             <li key={i} className="rounded-lg bg-muted/50 p-3">
                               <div className="flex items-center justify-between gap-2">
                                 <span className="font-medium">{d.label}</span>
-                                {d.date && (
-                                  <Badge variant="secondary">{d.date}</Badge>
-                                )}
+                                {d.date && <Badge variant="secondary">{d.date}</Badge>}
                               </div>
-                              <p className="mt-1 text-sm text-muted-foreground">
-                                {d.description}
-                              </p>
+                              <p className="mt-1 text-sm text-muted-foreground">{d.description}</p>
                             </li>
                           ))}
                         </ul>
@@ -470,9 +513,7 @@ function DocumentDetail() {
                                   {f.filled ? "ausgefüllt" : "offen"}
                                 </Badge>
                               </div>
-                              <p className="mt-1 text-sm text-muted-foreground">
-                                {f.explanation}
-                              </p>
+                              <p className="mt-1 text-sm text-muted-foreground">{f.explanation}</p>
                               {f.value && (
                                 <p className="mt-1 text-sm">
                                   <span className="text-muted-foreground">Wert: </span>
@@ -500,10 +541,7 @@ function DocumentDetail() {
                             <li key={i} className="rounded-lg bg-muted/50 p-3">
                               <span className="font-medium">{c.name}</span>
                               {c.role && (
-                                <span className="text-sm text-muted-foreground">
-                                  {" "}
-                                  · {c.role}
-                                </span>
+                                <span className="text-sm text-muted-foreground"> · {c.role}</span>
                               )}
                               <p className="mt-1 text-sm text-muted-foreground">{c.details}</p>
                             </li>
@@ -585,10 +623,7 @@ function DocumentDetail() {
               {messages.map((m) => (
                 <div
                   key={m.id}
-                  className={cn(
-                    "flex",
-                    m.role === "user" ? "justify-end" : "justify-start",
-                  )}
+                  className={cn("flex", m.role === "user" ? "justify-end" : "justify-start")}
                 >
                   <div
                     className={cn(
@@ -653,10 +688,7 @@ function DocumentDetail() {
           </DialogHeader>
 
           {pdfPreview && (
-            <PdfViewer
-              url={pdfPreview.url}
-              storageKey={`${documentId}:${pdfPreview.mode}`}
-            />
+            <PdfViewer url={pdfPreview.url} storageKey={`${documentId}:${pdfPreview.mode}`} />
           )}
 
           <div className="flex flex-wrap justify-end gap-2">

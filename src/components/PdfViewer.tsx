@@ -11,13 +11,8 @@ import {
   buildThumbKey,
 } from "@/lib/thumb-cache";
 
-// pdf.js wird nur clientseitig geladen (kein SSR)
-type PdfDoc = {
-  numPages: number;
-  getPage: (n: number) => Promise<any>;
-  fingerprints?: (string | null)[];
-  fingerprint?: string;
-};
+// pdf.js wird nur clientseitig geladen (kein SSR); Typen kommen aus pdfjs-dist.
+import type { PDFDocumentProxy, RenderTask } from "pdfjs-dist/types/src/display/api";
 
 const MIN_SCALE = 0.5;
 const MAX_SCALE = 3;
@@ -69,7 +64,7 @@ function Thumbnail({
   rootRef,
   cacheKey,
 }: {
-  pdf: PdfDoc;
+  pdf: PDFDocumentProxy;
   pageNumber: number;
   active: boolean;
   onSelect: (n: number) => void;
@@ -79,9 +74,7 @@ function Thumbnail({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   // Bereits gerendertes Thumbnail aus dem Cache (Data-URL) – vermeidet Neu-Render
-  const [cachedSrc, setCachedSrc] = useState<string | null>(
-    () => thumbCache.get(cacheKey) ?? null,
-  );
+  const [cachedSrc, setCachedSrc] = useState<string | null>(() => thumbCache.get(cacheKey) ?? null);
   // Erst rendern, wenn (nahezu) sichtbar – Lazy-Rendering für große PDFs
   const [visible, setVisible] = useState(false);
   const [rendered, setRendered] = useState(false);
@@ -131,7 +124,7 @@ function Thumbnail({
   useEffect(() => {
     if (!visible || cachedSrc) return;
     let cancelled = false;
-    let task: any = null;
+    let task: RenderTask | null = null;
     (async () => {
       try {
         const pdfPage = await pdf.getPage(pageNumber);
@@ -222,9 +215,9 @@ export function PdfViewer({
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const thumbScrollRef = useRef<HTMLDivElement>(null);
-  const renderTaskRef = useRef<any>(null);
+  const renderTaskRef = useRef<RenderTask | null>(null);
   const initial = useRef<ViewerState>(readState(storageKey));
-  const [pdf, setPdf] = useState<PdfDoc | null>(null);
+  const [pdf, setPdf] = useState<PDFDocumentProxy | null>(null);
   const [numPages, setNumPages] = useState(0);
   // Inhaltsabhängiger Fingerprint des Dokuments – ändert sich bei PDF-Änderung
   // und sorgt so für eine korrekte Cache-Zuordnung/Invalidierung.
@@ -275,14 +268,10 @@ export function PdfViewer({
           cMapPacked: true,
         }).promise;
         if (cancelled) return;
-        const typed = doc as unknown as PdfDoc;
-        // Fingerprint aus pdf.js ableiten (neue API: fingerprints[0],
-        // ältere API: fingerprint). Fallback verhindert Fehlzuordnung.
-        const version =
-          typed.fingerprints?.find((f): f is string => !!f) ??
-          typed.fingerprint ??
-          "unknown";
-        setPdf(typed);
+        // Inhaltsabhängiger Fingerprint aus pdf.js – ändert sich bei jeder
+        // PDF-Änderung und sorgt für korrekte Thumbnail-Zuordnung.
+        const version = doc.fingerprints?.find((f): f is string => !!f) ?? "unknown";
+        setPdf(doc);
         setNumPages(doc.numPages);
         setDocVersion(version);
         // Veraltete Cache-Einträge (alte Version oder anderer Fingerprint) für
@@ -319,7 +308,7 @@ export function PdfViewer({
         canvas.style.height = `${Math.floor(viewport.height)}px`;
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         renderTaskRef.current?.cancel?.();
-        const task = pdfPage.render({ canvas, canvasContext: ctx, viewport });
+        const task = pdfPage.render({ canvasContext: ctx, viewport });
         renderTaskRef.current = task;
         await task.promise;
       } catch (e) {
@@ -338,10 +327,7 @@ export function PdfViewer({
   useEffect(() => {
     if (!storageKey || typeof window === "undefined" || numPages === 0) return;
     try {
-      window.localStorage.setItem(
-        `pdf-viewer:${storageKey}`,
-        JSON.stringify({ page, scale }),
-      );
+      window.localStorage.setItem(`pdf-viewer:${storageKey}`, JSON.stringify({ page, scale }));
     } catch {
       /* Speicher nicht verfügbar – ignorieren */
     }
