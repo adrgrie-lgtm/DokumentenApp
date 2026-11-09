@@ -35,7 +35,10 @@ test.describe("Dokumenten-Upload", () => {
     ).toBeVisible({ timeout: 30_000 });
 
     // Suche findet das frisch hochgeladene Dokument
-    await expect(page.getByPlaceholder("Dokumente durchsuchen").fill(title)).toBeVisible();
+    // (fill() gibt ein Promise zurück, kein Locator – erst fillen, dann asserten)
+    const search = page.getByPlaceholder("Dokumente durchsuchen");
+    await search.fill(title);
+    await expect(search).toBeVisible();
     await expect(page.getByRole("heading", { name: title })).toBeVisible();
 
     // Detailseite ist erreichbar
