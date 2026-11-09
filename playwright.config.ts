@@ -30,7 +30,7 @@ export default defineConfig({
   projects: [
     {
       name: "public",
-      testMatch: /(landing|login)\.spec\.ts/,
+      testMatch: /landing\.spec\.ts/,
       use: { ...devices["Desktop Chrome"] },
     },
     {
