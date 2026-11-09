@@ -92,7 +92,7 @@ jobs:
 
       - name: Report hochladen
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: playwright-report-${{ matrix.project }}
           path: |
@@ -105,7 +105,7 @@ jobs:
       # damit sie ohne den kompletten HTML-Report abrufbar sind.
       - name: Traces hochladen (nur bei Fehlern)
         if: ${{ failure() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: playwright-traces-${{ matrix.project }}
           path: |
