@@ -6,9 +6,6 @@ on:
     branches: [main]
   workflow_dispatch:
 
-permissions:
-  issues: write
-
 concurrency:
   group: e2e-${{ github.ref }}
   cancel-in-progress: true
@@ -71,24 +68,7 @@ jobs:
         run: bunx playwright install --with-deps chromium
 
       - name: E2E-Tests ausführen
-        run: |
-          set -o pipefail
-          bunx playwright test --project=${{ matrix.project }} 2>&1 | tee e2e-output.txt
-
-      # TEMPORAER: Fehler-Log als Issue posten, damit der Fehlertext ohne
-      # Log-Zugriff analysierbar ist. Nach Gruenwerden wieder entfernen.
-      - name: Fehler in Issue dokumentieren
-        if: failure()
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          jq -n --arg project "${{ matrix.project }}" --arg run "${{ github.run_number }}" --rawfile body e2e-output.txt \
-            '{title: ("CI-Fehler: E2E (" + $project + ", Run " + $run + ")"), body: ($body[-55000:])}' > /tmp/payload.json
-          curl -s -X POST \
-            -H "Authorization: Bearer $GH_TOKEN" \
-            -H "Accept: application/vnd.github+json" \
-            https://api.github.com/repos/${{ github.repository }}/issues \
-            -d @/tmp/payload.json
+        run: bunx playwright test --project=${{ matrix.project }}
 
       - name: Report hochladen
         if: ${{ !cancelled() }}
