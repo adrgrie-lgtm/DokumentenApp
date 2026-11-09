@@ -1,25 +1,24 @@
 import { useState, type ReactNode } from "react";
-import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
+import { Link, useRouterState } from "@tanstack/react-router";
 import {
   LayoutDashboard,
   IdCard,
+  Settings,
   FileText,
   Menu,
   Moon,
   Sun,
-  LogOut,
-  ShieldCheck,
+  HardDrive,
 } from "lucide-react";
 import { useTheme } from "@/lib/theme";
-import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
-import { toast } from "sonner";
 
 const NAV = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/stammdaten", label: "Stammdaten", icon: IdCard },
+  { to: "/einstellungen", label: "Einstellungen", icon: Settings },
 ] as const;
 
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
@@ -57,9 +56,7 @@ function Brand() {
         <FileText className="h-5 w-5" />
       </span>
       <span className="flex flex-col leading-tight">
-        <span className="font-heading text-[15px] font-bold text-sidebar-foreground">
-          OneClick
-        </span>
+        <span className="font-heading text-[15px] font-bold text-sidebar-foreground">OneClick</span>
         <span className="text-[11px] text-sidebar-foreground/70">Dokumenten-Assistent</span>
       </span>
     </Link>
@@ -68,15 +65,7 @@ function Brand() {
 
 export function AppShell({ children }: { children: ReactNode }) {
   const { theme, toggleTheme } = useTheme();
-  const { user, signOut } = useAuth();
-  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
-
-  const handleSignOut = async () => {
-    await signOut();
-    toast.success("Abgemeldet");
-    navigate({ to: "/auth", replace: true, search: { next: undefined } });
-  };
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -90,10 +79,10 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
         <div className="rounded-lg bg-sidebar-accent/50 p-3 text-xs text-sidebar-foreground/80">
           <div className="flex items-center gap-2 font-medium text-sidebar-foreground">
-            <ShieldCheck className="h-4 w-4" /> DSGVO-konform
+            <HardDrive className="h-4 w-4" /> 100 % lokal
           </div>
           <p className="mt-1 leading-relaxed">
-            Ihre Dokumente werden verschlüsselt gespeichert und nur Ihnen angezeigt.
+            Ihre Dokumente bleiben ausschließlich in diesem Browser gespeichert.
           </p>
         </div>
       </aside>
@@ -131,12 +120,9 @@ export function AppShell({ children }: { children: ReactNode }) {
             >
               {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
             </Button>
-            <span className="hidden max-w-[180px] truncate text-sm text-muted-foreground sm:inline">
-              {user?.email}
+            <span className="hidden items-center gap-1.5 rounded-full bg-secondary px-3 py-1 text-xs font-medium text-secondary-foreground sm:inline-flex">
+              <HardDrive className="h-3.5 w-3.5" /> Lokal
             </span>
-            <Button variant="outline" size="sm" onClick={handleSignOut}>
-              <LogOut className="mr-2 h-4 w-4" /> Abmelden
-            </Button>
           </div>
         </header>
 

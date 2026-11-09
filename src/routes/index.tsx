@@ -1,4 +1,4 @@
-import { createFileRoute, Link, redirect } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   FileText,
   ScanText,
@@ -8,26 +8,30 @@ import {
   Clock,
   ArrowRight,
   CheckCircle2,
+  HardDrive,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: "OneClick Dokumenten-Assistent – Behördenpost verstehen" },
-      { name: "description", content: "KI-Assistent für Behördenformulare: Dokumente hochladen, Fristen erkennen, Pflichtfelder ausfüllen lassen." },
+      {
+        name: "description",
+        content:
+          "KI-Assistent für Behördenformulare: Dokumente hochladen, Fristen erkennen, Pflichtfelder ausfüllen lassen. Alle Daten bleiben lokal im Browser.",
+      },
       { property: "og:title", content: "OneClick Dokumenten-Assistent – Behördenpost verstehen" },
-      { property: "og:description", content: "KI-Assistent für Behördenformulare: Dokumente hochladen, Fristen erkennen, Pflichtfelder ausfüllen lassen." },
+      {
+        property: "og:description",
+        content:
+          "KI-Assistent für Behördenformulare: Dokumente hochladen, Fristen erkennen, Pflichtfelder ausfüllen lassen.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
   ssr: false,
-  beforeLoad: async () => {
-    const { data } = await supabase.auth.getUser();
-    if (data.user) throw redirect({ to: "/dashboard" });
-  },
   component: Landing,
 });
 
@@ -48,9 +52,9 @@ const FEATURES = [
     text: "Persönliche Daten einmal hinterlegen und bei neuen Formularen wiederverwenden.",
   },
   {
-    icon: ShieldCheck,
-    title: "DSGVO-konform",
-    text: "Verschlüsselte Speicherung und sichere Anmeldung – Ihre Daten bleiben privat.",
+    icon: HardDrive,
+    title: "100 % lokal",
+    text: "Kein Konto, kein Server: Alle Dokumente und Daten bleiben ausschließlich in diesem Browser.",
   },
 ];
 
@@ -71,7 +75,7 @@ function Landing() {
           <span className="font-heading text-lg font-bold">OneClick</span>
         </div>
         <Button asChild variant="outline" size="sm">
-          <Link to="/auth" search={{ next: undefined }}>Anmelden</Link>
+          <Link to="/dashboard">App öffnen</Link>
         </Button>
       </header>
 
@@ -85,14 +89,14 @@ function Landing() {
               Behördenformulare endlich einfach verstehen
             </h1>
             <p className="mt-5 text-lg text-primary-foreground/85">
-              Laden Sie PDFs, Fotos oder Scans hoch. Der OneClick Dokumenten-Assistent
-              analysiert Ihr Dokument, erklärt jedes Feld verständlich und hilft beim
-              Ausfüllen.
+              Laden Sie PDFs, Fotos oder Scans hoch. Der OneClick Dokumenten-Assistent analysiert
+              Ihr Dokument, erklärt jedes Feld verständlich und hilft beim Ausfüllen – alles lokal
+              in Ihrem Browser.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Button asChild size="lg" variant="secondary">
-                <Link to="/auth" search={{ next: undefined }}>
-                  Kostenlos starten <ArrowRight className="ml-2 h-4 w-4" />
+                <Link to="/dashboard">
+                  Jetzt starten <ArrowRight className="ml-2 h-4 w-4" />
                 </Link>
               </Button>
             </div>
@@ -110,7 +114,7 @@ function Landing() {
       <section className="mx-auto max-w-6xl px-4 py-16 lg:py-20">
         <h2 className="text-center text-3xl font-bold">Alles, was Sie brauchen</h2>
         <p className="mx-auto mt-3 max-w-2xl text-center text-muted-foreground">
-          Von der Analyse bis zum ausgefüllten Formular – verständlich und sicher.
+          Von der Analyse bis zum ausgefüllten Formular – verständlich und privat.
         </p>
         <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
           {FEATURES.map((f) => {
@@ -136,10 +140,10 @@ function Landing() {
           <Clock className="h-10 w-10 text-primary" />
           <h2 className="text-3xl font-bold">Sparen Sie sich Behördenstress</h2>
           <p className="max-w-xl text-muted-foreground">
-            Erstellen Sie Ihr kostenloses Konto und laden Sie Ihr erstes Dokument hoch.
+            Einfach öffnen und das erste Dokument hochladen – ohne Anmeldung.
           </p>
           <Button asChild size="lg">
-            <Link to="/auth" search={{ next: undefined }}>
+            <Link to="/dashboard">
               Jetzt starten <ArrowRight className="ml-2 h-4 w-4" />
             </Link>
           </Button>

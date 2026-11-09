@@ -2,8 +2,7 @@ import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2, Save, IdCard, ShieldCheck } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/lib/auth";
+import { EMPTY_MASTER, getMasterData, setMasterData, type MasterData } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,55 +12,23 @@ export const Route = createFileRoute("/_authenticated/stammdaten")({
   head: () => ({
     meta: [
       { title: "Stammdaten – OneClick Dokumenten-Assistent" },
-      { name: "description", content: "Persönliche Daten hinterlegen, damit Formulare automatisch vorausgefüllt werden können." },
+      {
+        name: "description",
+        content:
+          "Persönliche Daten hinterlegen, damit Formulare automatisch vorausgefüllt werden können.",
+      },
       { property: "og:title", content: "Stammdaten – OneClick Dokumenten-Assistent" },
-      { property: "og:description", content: "Persönliche Daten hinterlegen, damit Formulare automatisch vorausgefüllt werden können." },
+      {
+        property: "og:description",
+        content:
+          "Persönliche Daten hinterlegen, damit Formulare automatisch vorausgefüllt werden können.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
   component: Stammdaten,
 });
-
-interface MasterData {
-  first_name: string;
-  last_name: string;
-  street: string;
-  house_number: string;
-  postal_code: string;
-  city: string;
-  country: string;
-  birth_date: string;
-  phone: string;
-  email: string;
-  marital_status: string;
-  children_count: number;
-  iban: string;
-  bic: string;
-  bank_name: string;
-  id_card_number: string;
-  tax_id: string;
-}
-
-const EMPTY: MasterData = {
-  first_name: "",
-  last_name: "",
-  street: "",
-  house_number: "",
-  postal_code: "",
-  city: "",
-  country: "Deutschland",
-  birth_date: "",
-  phone: "",
-  email: "",
-  marital_status: "",
-  children_count: 0,
-  iban: "",
-  bic: "",
-  bank_name: "",
-  id_card_number: "",
-  tax_id: "",
-};
 
 function Field({
   id,
@@ -102,50 +69,30 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 }
 
 function Stammdaten() {
-  const { user } = useAuth();
-  const [form, setForm] = useState<MasterData>(EMPTY);
+  const [form, setForm] = useState<MasterData>(EMPTY_MASTER);
   const [saving, setSaving] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ["master_data"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("master_data").select("*").maybeSingle();
-      if (error) throw error;
-      return data;
-    },
+    queryFn: () => getMasterData(),
   });
 
   useEffect(() => {
-    if (data) {
-      setForm({
-        ...EMPTY,
-        ...Object.fromEntries(
-          Object.entries(data).filter(([, v]) => v !== null),
-        ),
-      } as MasterData);
-    } else if (user?.email) {
-      setForm((f) => ({ ...f, email: f.email || user.email || "" }));
-    }
-  }, [data, user?.email]);
+    if (data) setForm(data);
+  }, [data]);
 
   const set = (key: keyof MasterData) => (v: string) =>
     setForm((f) => ({ ...f, [key]: key === "children_count" ? Number(v) || 0 : v }));
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return;
     setSaving(true);
     try {
-      const payload = {
+      await setMasterData({
         ...form,
-        birth_date: form.birth_date || null,
+        birth_date: form.birth_date || "",
         children_count: Number(form.children_count) || 0,
-        user_id: user.id,
-      };
-      const { error } = await supabase
-        .from("master_data")
-        .upsert(payload, { onConflict: "user_id" });
-      if (error) throw error;
+      });
       toast.success("Stammdaten gespeichert");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Speichern fehlgeschlagen");
@@ -178,21 +125,54 @@ function Stammdaten() {
 
       <div className="flex items-start gap-2 rounded-lg bg-secondary/60 p-3 text-xs text-secondary-foreground">
         <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />
-        Ihre Daten werden verschlüsselt gespeichert und sind ausschließlich für Sie sichtbar.
+        Ihre Daten werden nur lokal in diesem Browser gespeichert und an niemanden übertragen.
       </div>
 
       <Section title="Persönliche Daten">
-        <Field id="first_name" label="Vorname" value={form.first_name} onChange={set("first_name")} />
+        <Field
+          id="first_name"
+          label="Vorname"
+          value={form.first_name}
+          onChange={set("first_name")}
+        />
         <Field id="last_name" label="Nachname" value={form.last_name} onChange={set("last_name")} />
-        <Field id="birth_date" label="Geburtsdatum" type="date" value={form.birth_date} onChange={set("birth_date")} />
-        <Field id="marital_status" label="Familienstand" value={form.marital_status} onChange={set("marital_status")} placeholder="z. B. ledig, verheiratet" />
-        <Field id="children_count" label="Anzahl Kinder" type="number" value={form.children_count} onChange={set("children_count")} />
+        <Field
+          id="birth_date"
+          label="Geburtsdatum"
+          type="date"
+          value={form.birth_date}
+          onChange={set("birth_date")}
+        />
+        <Field
+          id="marital_status"
+          label="Familienstand"
+          value={form.marital_status}
+          onChange={set("marital_status")}
+          placeholder="z. B. ledig, verheiratet"
+        />
+        <Field
+          id="children_count"
+          label="Anzahl Kinder"
+          type="number"
+          value={form.children_count}
+          onChange={set("children_count")}
+        />
       </Section>
 
       <Section title="Anschrift">
         <Field id="street" label="Straße" value={form.street} onChange={set("street")} />
-        <Field id="house_number" label="Hausnummer" value={form.house_number} onChange={set("house_number")} />
-        <Field id="postal_code" label="PLZ" value={form.postal_code} onChange={set("postal_code")} />
+        <Field
+          id="house_number"
+          label="Hausnummer"
+          value={form.house_number}
+          onChange={set("house_number")}
+        />
+        <Field
+          id="postal_code"
+          label="PLZ"
+          value={form.postal_code}
+          onChange={set("postal_code")}
+        />
         <Field id="city" label="Ort" value={form.city} onChange={set("city")} />
         <Field id="country" label="Land" value={form.country} onChange={set("country")} />
       </Section>
@@ -209,13 +189,22 @@ function Stammdaten() {
       </Section>
 
       <Section title="Ausweis & Steuer">
-        <Field id="id_card_number" label="Personalausweisnummer" value={form.id_card_number} onChange={set("id_card_number")} />
+        <Field
+          id="id_card_number"
+          label="Personalausweisnummer"
+          value={form.id_card_number}
+          onChange={set("id_card_number")}
+        />
         <Field id="tax_id" label="Steuer-ID" value={form.tax_id} onChange={set("tax_id")} />
       </Section>
 
       <div className="flex justify-end">
         <Button type="submit" disabled={saving}>
-          {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+          {saving ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <Save className="mr-2 h-4 w-4" />
+          )}
           Speichern
         </Button>
       </div>
