@@ -1,9 +1,7 @@
 import { test, expect } from "@playwright/test";
-import { requireAuth, tinyPdf } from "./helpers";
+import { tinyPdf } from "./helpers";
 
 test.describe("Dokumenten-Upload", () => {
-  test.beforeEach(() => requireAuth());
-
   test("lehnt nicht unterstützte Dateiformate ab", async ({ page }) => {
     await page.goto("/dashboard", { waitUntil: "domcontentloaded" });
     await page.setInputFiles('input[type="file"]', {
@@ -11,10 +9,9 @@ test.describe("Dokumenten-Upload", () => {
       mimeType: "text/plain",
       buffer: Buffer.from("kein erlaubtes Format"),
     });
-    await expect(page.locator("[data-sonner-toast]")).toContainText(
-      /nicht unterstütztes Format/,
-      { timeout: 20_000 },
-    );
+    await expect(page.locator("[data-sonner-toast]")).toContainText(/nicht unterstütztes Format/, {
+      timeout: 20_000,
+    });
   });
 
   test("lädt ein PDF hoch und zeigt es in der Liste", async ({ page }) => {
@@ -38,7 +35,7 @@ test.describe("Dokumenten-Upload", () => {
     ).toBeVisible({ timeout: 30_000 });
 
     // Suche findet das frisch hochgeladene Dokument
-    await page.getByPlaceholder("Dokumente durchsuchen").fill(title);
+    await expect(page.getByPlaceholder("Dokumente durchsuchen").fill(title)).toBeVisible();
     await expect(page.getByRole("heading", { name: title })).toBeVisible();
 
     // Detailseite ist erreichbar

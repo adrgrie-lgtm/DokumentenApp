@@ -13,9 +13,7 @@ concurrency:
 jobs:
   e2e:
     name: Playwright (${{ matrix.project }})
-    # ubuntu-latest ist seit 19.10.2026 Ubuntu 26; das gepinnte Playwright
-    # 1.56 unterstützt dessen Browser-Abhängigkeiten noch nicht.
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
       fail-fast: false
@@ -23,15 +21,9 @@ jobs:
         project: [public, authenticated]
     env:
       E2E_BASE_URL: http://localhost:8080
-      VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-      VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
-      VITE_SUPABASE_PROJECT_ID: ${{ secrets.VITE_SUPABASE_PROJECT_ID }}
-      SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-      SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
-      SUPABASE_PROJECT_ID: ${{ secrets.VITE_SUPABASE_PROJECT_ID }}
-      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-      E2E_EMAIL: ${{ secrets.E2E_EMAIL }}
-      E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
+      # Die App ist lokal-first (IndexedDB) und braucht keine Secrets mehr.
+      # KI-Funktionen sind ohne Schlüssel deaktiviert; die Tests prüfen die
+      # Pfade, die ohne KI-Schlüssel funktionieren.
     steps:
       - uses: actions/checkout@v4
 
@@ -50,9 +42,7 @@ jobs:
             bun-${{ runner.os }}-
 
       - name: Abhängigkeiten installieren
-        # Ohne --frozen-lockfile: bun.lock ist nicht eingecheckt und wird
-        # durch bun install neu erzeugt.
-        run: bun install
+        run: bun install --frozen-lockfile
 
       # Playwright-Version ermitteln (vor dem Cache-Schritt, da der Key davon
       # abhängt) — Chromium ist mehrere hundert MB groß und ändert sich nur,

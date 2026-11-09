@@ -1,17 +1,4 @@
-import { readFileSync } from "node:fs";
-import { expect, test, type Page } from "@playwright/test";
-
-/** Überspringt einen Test, wenn kein angemeldeter Zustand vorhanden ist. */
-export function requireAuth() {
-  try {
-    const state = JSON.parse(readFileSync("e2e/.auth/state.json", "utf8"));
-    const hasSession =
-      (state.origins?.length ?? 0) > 0 || (state.cookies?.length ?? 0) > 0;
-    test.skip(!hasSession, "Keine angemeldete Session verfügbar.");
-  } catch {
-    test.skip(true, "Kein Auth-Zustand gefunden.");
-  }
-}
+import { expect, type Page } from "@playwright/test";
 
 /** Sammelt Browser-Konsolenfehler für Assertions am Testende. */
 export function collectConsoleErrors(page: Page) {

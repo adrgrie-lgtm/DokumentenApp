@@ -1,9 +1,8 @@
 import { test, expect } from "@playwright/test";
-import { requireAuth, waitForHydration } from "./helpers";
+import { waitForHydration } from "./helpers";
 
 test.describe("Dashboard", () => {
   test.beforeEach(async ({ page }) => {
-    requireAuth();
     await page.goto("/dashboard", { waitUntil: "domcontentloaded" });
     await waitForHydration(page);
   });

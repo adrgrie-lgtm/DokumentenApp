@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { requireAuth, tinyPdf } from "./helpers";
+import { tinyPdf } from "./helpers";
 
 /** Lädt ein Test-PDF hoch und öffnet dessen Detailseite. */
 async function openTestDocument(page: import("@playwright/test").Page) {
@@ -21,8 +21,6 @@ async function openTestDocument(page: import("@playwright/test").Page) {
 }
 
 test.describe("PDF-Vorschau", () => {
-  test.beforeEach(() => requireAuth());
-
   test("rendert das ausgefüllte PDF mit Navigation und Zoom", async ({ page }) => {
     test.setTimeout(240_000);
     await openTestDocument(page);
