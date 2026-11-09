@@ -96,8 +96,7 @@ export async function idbPruneStale(docId: string, currentVersion: string): Prom
         if (!cursor) return;
         const key = String(cursor.key);
         const isOldVersion = !key.startsWith(versionPrefix);
-        const isStaleForThisDoc =
-          key.startsWith(validDocPrefix) && !key.startsWith(currentPrefix);
+        const isStaleForThisDoc = key.startsWith(validDocPrefix) && !key.startsWith(currentPrefix);
         if (isOldVersion || isStaleForThisDoc) {
           store.delete(cursor.key);
         }
