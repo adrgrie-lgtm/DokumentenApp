@@ -13,7 +13,9 @@ concurrency:
 jobs:
   e2e:
     name: Playwright (${{ matrix.project }})
-    runs-on: ubuntu-latest
+    # ubuntu-latest ist seit 19.10.2026 Ubuntu 26; das gepinnte Playwright
+    # 1.56 unterstuetzt dessen Browser-Abhaengigkeiten nicht.
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     strategy:
       fail-fast: false
@@ -42,7 +44,8 @@ jobs:
             bun-${{ runner.os }}-
 
       - name: Abhängigkeiten installieren
-        run: bun install --frozen-lockfile
+        # Ohne --frozen-lockfile: bun.lock ist nicht eingecheckt.
+        run: bun install
 
       # Playwright-Version ermitteln (vor dem Cache-Schritt, da der Key davon
       # abhängt) — Chromium ist mehrere hundert MB groß und ändert sich nur,
