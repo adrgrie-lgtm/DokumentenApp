@@ -27,7 +27,7 @@ jobs:
       # KI-Funktionen sind ohne Schlüssel deaktiviert; die Tests prüfen die
       # Pfade, die ohne KI-Schlüssel funktionieren.
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: oven-sh/setup-bun@v2
         with:
